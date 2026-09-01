@@ -1,0 +1,81 @@
+
+AGX CODE SLOT SIZES
+===================
+  add      48 bytes
+  sub     193 bytes
+  mul     194 bytes
+  div     258 bytes
+  min     194 bytes
+  max     194 bytes
+  fma     193 bytes
+  sqrt    257 bytes
+  rsqrt   257 bytes
+  floor   257 bytes
+  ceil    257 bytes
+  abs     194 bytes
+  exp2    258 bytes
+  log2    258 bytes
+  sin     321 bytes
+
+OPCODE DIFF WITHIN EQUAL-SIZE GROUPS
+=====================================================================
+
+-- 193-byte slots: sub, fma
+   +0x0a1 :  sub   =1c  fma   =1e
+   +0x0a3 :  sub   =00  fma   =81
+   +0x0a4 :  sub   =c8  fma   =00
+   +0x0a5 :  sub   =e7  fma   =02
+   +0x0a6 :  sub   =00  fma   =c0
+   +0x0a7 :  sub   =54  fma   =e7
+   +0x0a9 :  sub   =00  fma   =54
+   +0x0aa :  sub   =01  fma   =00
+   +0x0ab :  sub   =21  fma   =00
+   +0x0ac :  sub   =00  fma   =01
+   +0x0ad :  sub   =11  fma   =21
+   +0x0af :  sub   =00  fma   =11
+   18 of 193 bytes differ across this group (first 12 shown)
+
+-- 194-byte slots: mul, min, max, abs
+   +0x080 :  mul   =1c  min   =0c  max   =0c  abs   =1c
+   +0x087 :  mul   =00  min   =02  max   =02  abs   =00
+   +0x089 :  mul   =01  min   =00  max   =00  abs   =01
+   +0x097 :  mul   =01  min   =00  max   =00  abs   =01
+   +0x0a0 :  mul   =09  min   =12  max   =12  abs   =09
+   +0x0a1 :  mul   =05  min   =03  max   =03  abs   =05
+   +0x0a2 :  mul   =1d  min   =1e  max   =1e  abs   =1c
+   +0x0a3 :  mul   =01  min   =05  max   =05  abs   =01
+   +0x0a4 :  mul   =00  min   =01  max   =00  abs   =02
+   +0x0a5 :  mul   =c0  min   =c0  max   =c0  abs   =00
+   +0x0a6 :  mul   =e7  min   =e7  max   =e7  abs   =00
+   +0x0a7 :  mul   =00  min   =00  max   =00  abs   =80
+   27 of 194 bytes differ across this group (first 12 shown)
+
+-- 258-byte slots: div, exp2, log2
+   +0x087 :  div   =04  exp2  =00  log2  =00
+   +0x088 :  div   =02  exp2  =01  log2  =01
+   +0x095 :  div   =00  exp2  =04  log2  =04
+   +0x096 :  div   =01  exp2  =02  log2  =02
+   +0x0a0 :  div   =af  exp2  =af  log2  =2f
+   +0x0a1 :  div   =00  exp2  =02  log2  =02
+   +0x0a3 :  div   =04  exp2  =00  log2  =00
+   +0x0a5 :  div   =08  exp2  =00  log2  =00
+   +0x0a6 :  div   =10  exp2  =b0  log2  =b0
+   +0x0a7 :  div   =48  exp2  =40  log2  =40
+   +0x0a8 :  div   =20  exp2  =00  log2  =00
+   +0x0ab :  div   =01  exp2  =05  log2  =05
+   15 of 258 bytes differ across this group (first 12 shown)
+
+-- 257-byte slots: sqrt, rsqrt, floor, ceil
+   +0x09f :  sqrt  =2f  rsqrt =af  floor =2f  ceil  =2f
+   +0x0a0 :  sqrt  =01  rsqrt =01  floor =00  ceil  =00
+   +0x0a2 :  sqrt  =08  rsqrt =00  floor =00  ceil  =00
+   +0x0a5 :  sqrt  =92  rsqrt =b0  floor =b0  ceil  =b0
+   +0x0a7 :  sqrt  =00  rsqrt =00  floor =02  ceil  =04
+   +0x0aa :  sqrt  =09  rsqrt =05  floor =05  ceil  =05
+   +0x0ab :  sqrt  =1e  rsqrt =1c  floor =1c  ceil  =1c
+   +0x0ad :  sqrt  =81  rsqrt =00  floor =00  ceil  =00
+   +0x0ae :  sqrt  =04  rsqrt =20  floor =20  ceil  =20
+   +0x0af :  sqrt  =02  rsqrt =e7  floor =e7  ceil  =e7
+   +0x0b0 :  sqrt  =20  rsqrt =00  floor =00  ceil  =00
+   +0x0b1 :  sqrt  =e7  rsqrt =54  floor =54  ceil  =54
+   24 of 257 bytes differ across this group (first 12 shown)
