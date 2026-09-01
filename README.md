@@ -158,6 +158,66 @@ fragment shader. This matches how Mesa's Asahi driver handles blending, and is
 the clearest example of the method correctly reporting that a thing you expected
 to find does not exist.
 
+## Pipeline-state axes: state or compiled code?
+
+Thirteen axes came back `not located` from `state_probe` because they live in
+the pipeline object, so changing one recompiles the shader. `pso_probe` asks a
+sharper question — is the axis carried by a fixed-size descriptor slot, or baked
+into code?
+
+```
+AXIS                 SLOT SIZES        VERDICT
+vertex.attrOffset    322,322,322       STATE: 4 bytes differ, first at +0x99
+blend.srcFactor      514,514,514,514   CODE (271 of 514 bytes differ)
+colorWriteMask       449,386,385,450   CODE (slot size varies with value)
+vertex.format        258,322,322,321   CODE
+vertex.layoutStride  258,321,322       CODE
+blend.dstFactor      514,577,513,578   CODE
+```
+
+`blend.srcFactor` is the clean case: **constant 514-byte slot, but 271 of those
+bytes move.** A state field shifts a handful of bytes; that is a recompile. So
+most of the thirteen are not gaps in the map — they are provably not registers.
+
+## Instruction format
+
+`isa2_probe` compiles kernels differing in one immediate or one operand and
+diffs the emitted slots. Slots must first be snapped to the **64-byte quantum**;
+a one-byte start difference (193 vs 194) otherwise makes every later byte
+compare unequal, which turned a 3-byte difference into a 99-byte one.
+
+```
+=== immediate ===        1.5   2.5   3.5   4.5   5.5
+  +0x093                  b9    c5    cd    d3    d7      the literal
+  +0x0c0/c1            varies                             likely a hash
+
+=== operand order ===   a-b   b-a   a-c   c-a
+  +0x088                 01    02    01    02
+  +0x096                 02    01    02    01             source operands, swapped
+```
+
+Immediates are **one byte**, not inline float32, and the deltas (+12,+8,+6,+4)
+decay logarithmically — a minifloat encoding rather than a constant pool index.
+`+0x088` and `+0x096` hold source operands and swap when the operands swap; they
+are identical for `a-b` and `a-c` because the register allocator reuses registers
+regardless of which buffer is read.
+
+## Firmware ring
+
+`ring_probe` looks one layer below everything else: the coprocessor the GPU is
+actually driven by. Over 24 submits it looks for monotonic counters and write
+windows that march.
+
+```
+reg6 +0x004 / +0x008    352 -> 2376, constant stride, +88 per submit
+reg6 0x16c, 0x198, ...  44-byte records, two counters each (stride 0x2c)
+reg30                   write window marches +101,376 bytes over 23 submits
+```
+
+A pointer pair advancing in lockstep at a fixed stride is the head/tail
+signature, and reg30's marching window is a ring data area. Located, not
+decoded.
+
 ## Neural Engine
 
 The same method applied to the ANE (`h16g`, 16 cores) lives in [`ane/`](ane/):

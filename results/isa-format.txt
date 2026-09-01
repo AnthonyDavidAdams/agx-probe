@@ -1,0 +1,44 @@
+[isa2] 3 regions
+[isa2] arena noise 0 bytes
+
+
+=== immediate float ===
+  a[i]*0.75f               slot   42 bytes
+  a[i]*1.5f                slot  205 bytes
+  a[i]*2.5f                slot  194 bytes
+  a[i]*3.5f                slot  194 bytes
+  a[i]*4.5f                slot  194 bytes
+  a[i]*5.5f                slot  194 bytes
+  -> slot size varies by 11 bytes; not comparable
+
+=== immediate add ===
+  a[i]+0.75f               slot  205 bytes
+  a[i]+1.5f                slot  194 bytes
+  a[i]+2.5f                slot  194 bytes
+  a[i]+3.5f                slot  194 bytes
+  a[i]+4.5f                slot  194 bytes
+  a[i]+5.5f                slot  194 bytes
+  -> 3 of 194 bytes differ across the group (throwaway excluded)
+     +0x093 : b9 c5 cd d3 d7
+     +0x0c0 : 00 40 80 c0 00
+     +0x0c1 : f6 f5 f4 f3 f3
+     >> immediate NOT inline float32 (constant pool or packed literal)
+
+=== operand order ===
+  b[i]-c[i]                slot  205 bytes
+  a[i]-b[i]                slot  194 bytes
+  b[i]-a[i]                slot  194 bytes
+  a[i]-c[i]                slot  194 bytes
+  c[i]-a[i]                slot  194 bytes
+  -> 4 of 194 bytes differ across the group (throwaway excluded)
+     +0x088 : 01 02 01 02
+     +0x096 : 02 01 02 01
+     +0x0c0 : 40 80 c0 00
+     +0x0c1 : f1 f0 ef ef
+
+=== operand count ===
+  a[i]+c[i]                slot  205 bytes
+  a[i]+b[i]                slot  194 bytes
+  a[i]+b[i]+c[i]           slot  258 bytes
+  a[i]+b[i]+c[i]+a[i]      slot  258 bytes
+  -> slot size varies by 64 bytes; not comparable

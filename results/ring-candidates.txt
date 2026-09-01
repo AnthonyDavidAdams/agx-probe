@@ -1,0 +1,36 @@
+[ring] 32 regions / 3670016 bytes, 24 submits
+
+
+[ring] 20 pointer candidates, 2 marching regions
+CANDIDATE RING POINTERS (uint32 advancing monotonically per submit)
+===================================================================
+REG   OFFSET     FIRST        LAST       STEP PATTERN
+-------------------------------------------------------------------
+6     0x000004  352          2376       constant stride
+6     0x000008  352          2376       constant stride
+6     0x00016c  0            40         irregular
+6     0x000174  0            24576      irregular
+6     0x000198  0            40         irregular
+6     0x0001a0  0            24576      irregular
+6     0x0001c4  0            40         irregular
+6     0x0001cc  0            24576      irregular
+6     0x0001f0  0            40         irregular
+6     0x0001f8  0            24576      irregular
+6     0x00021c  0            40         irregular
+6     0x000224  0            24576      irregular
+6     0x000248  0            40         irregular
+6     0x000250  0            24576      irregular
+6     0x000274  0            40         irregular
+6     0x00027c  0            24576      irregular
+6     0x0002a0  0            40         irregular
+6     0x0002a8  0            24576      irregular
+6     0x0002cc  0            40         irregular
+6     0x0002d4  0            24576      irregular
+
+WRITE-WINDOW MARCH (region, bytes changed per submit, span drift)
+===================================================================
+reg6       42 bytes/submit  start drifts +0 bytes over 23 submits  in place
+reg8        3 bytes/submit  start drifts +0 bytes over 23 submits  in place
+reg28       4 bytes/submit  start drifts +1056 bytes over 23 submits  <== marching (ring-like)
+reg29      11 bytes/submit  start drifts +88 bytes over 23 submits  
+reg30      11 bytes/submit  start drifts +101376 bytes over 23 submits  <== marching (ring-like)

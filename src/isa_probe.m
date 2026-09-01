@@ -77,9 +77,10 @@ int main(void){ @autoreleasepool {
         if(agx_masked(0,1,r,o)) continue;
         if(snap[cur][r][o]!=snap[prev][r][o]){ cnt++; if(o<l)l=o; if(o>h)h=o; } }
       if(cnt>best){best=cnt;br=r;lo=l;hi=h;} }
-    S[v].reg=br; S[v].off=lo; S[v].len=(int)(hi-lo+1);
+    uint64_t alo = lo & ~63ULL;          /* 64-byte quantum */
+    S[v].reg=br; S[v].off=alo; S[v].len=(int)(hi-alo+1);
     if(S[v].len>2048) S[v].len=2048;
-    if(br>=0) memcpy(S[v].code,&snap[cur][br][lo],S[v].len);
+    if(br>=0) memcpy(S[v].code,&snap[cur][br][alo],S[v].len);
     fprintf(stderr,"[isa] %-6s  reg%-2d 0x%06llx  span %4d bytes  (%d changed)\n",
             V[v].name,br,lo,S[v].len,best);
     prev=cur; } }

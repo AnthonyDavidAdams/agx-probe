@@ -1,0 +1,13 @@
+[pso] 5 regions / 344064 bytes
+
+PIPELINE-STATE AXES: is it STATE or compiled CODE?
+(arena noise between identical builds: 0 bytes)
+==================================================================
+AXIS                   SLOT SIZES                 VERDICT
+------------------------------------------------------------------
+colorWriteMask         =0,449,386,385,450         CODE (slot size varies with value)
+vertex.format          258,322,322,=0,321         CODE (slot size varies with value)
+vertex.attrOffset      =0,322,322,322             STATE: 4 bytes differ, first at +0x99
+vertex.layoutStride    258,321,322,=0             CODE (slot size varies with value)
+blend.srcFactor        =0,514,514,514,514         CODE (271 of 514 bytes differ)
+blend.dstFactor        =0,514,577,513,578         CODE (slot size varies with value)
