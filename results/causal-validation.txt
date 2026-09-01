@@ -1,28 +1,50 @@
 [val] 33 regions tracked
 
-[val] field 1/10 depthCompareFunction
-[val] field 2/10 cullMode
-[val] field 3/10 frontFacingWinding
-[val] field 4/10 triangleFillMode
-[val] field 5/10 stencilCompareFunc
-[val] field 6/10 stencilPassOp
-[val] field 7/10 depthWriteEnabled
-[val] field 8/10 scissor.x
-[val] field 9/10 stencilReferenceValue
-[val] field 10/10 blendColor.red
+[val] field 1/21 depthCompareFunction
+[val] field 2/21 cullMode
+[val] field 3/21 frontFacingWinding
+[val] field 4/21 triangleFillMode
+[val] field 5/21 stencilCompareFunc
+[val] field 6/21 stencilPassOp
+[val] field 7/21 depthWriteEnabled
+[val] field 8/21 scissor.x
+[val] field 9/21 stencilReferenceValue
+[val] field 10/21 blendColor.red
+[val] field 11/21 blendColor.green
+[val] field 12/21 blendColor.blue
+[val] field 13/21 clearColor.red
+[val] field 14/21 clearColor.green
+[val] field 15/21 clearColor.blue
+[val] field 16/21 clearColor.alpha
+[val] field 17/21 clearDepth
+[val] field 18/21 scissor.y
+[val] field 19/21 renderTargetWidth
+[val] field 20/21 stencilFailOp
+[val] field 21/21 depthFailOp
 CAUSAL VALIDATION -- patched(A->B) must be PIXEL-IDENTICAL to unpatched(B)
 ==========================================================================
 FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
 --------------------------------------------------------------------------
 depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093b bit0 (3 probes)
 cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x000998 bit0 (2 probes)
-frontFacingWinding     88         25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00099a bit0 (9 probes)
-triangleFillMode       407        25.8%      3.4% -         altered output but never reproduced B
-stencilCompareFunc     50         25.8%      0.0% -         patching all candidates had no effect
-stencilPassOp          392        25.8%     25.8%     25.8%  CAUSAL @ reg26 0x00093e bit0 (11 probes)
-depthWriteEnabled      6          25.8%     25.8% -         patching all candidates had no effect
+frontFacingWinding     89         25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00099a bit0 (9 probes)
+triangleFillMode       96         25.8%      3.4% -         state reproduced by 90 bytes - NOT isolated
+stencilCompareFunc     95         25.8%      0.0% -         state reproduced by 95 bytes - NOT isolated
+stencilPassOp          116        25.8%     25.8%     25.8%  CAUSAL @ reg26 0x00093e bit0 (9 probes)
+depthWriteEnabled      2          25.8%     25.8%     25.8%  CAUSAL: 1-byte group
 scissor.x              1          25.8%     17.0%     17.0%  CAUSAL @ reg19 0x000012 bit0 (2 probes)
 stencilReferenceValue  -          25.8%     25.8% -         no visible effect - untestable
 blendColor.red         1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000620 bit0 (2 probes)
+blendColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000624 bit0 (2 probes)
+blendColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000628 bit0 (2 probes)
+clearColor.red         1          25.8%    100.0%    100.0%  CAUSAL @ reg16 0x0000e0 bit0 (2 probes)
+clearColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000e4 bit0 (2 probes)
+clearColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000e8 bit0 (2 probes)
+clearColor.alpha       1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000ec bit0 (2 probes)
+clearDepth             0          25.8%      0.0% -         no site calibrated
+scissor.y              1          25.8%     24.4%     24.4%  CAUSAL @ reg19 0x000016 bit0 (2 probes)
+renderTargetWidth      73         25.8%     16.1% -         state reproduced by 73 bytes - NOT isolated
+stencilFailOp          -          25.8%     25.8% -         no visible effect - untestable
+depthFailOp            -          25.8%     25.8% -         no visible effect - untestable
 --------------------------------------------------------------------------
-6 of 9 testable fields proven causal (1 had no visible effect)
+14 of 17 testable fields isolated causally; 3 reproduced but not isolated; 3 no visible effect

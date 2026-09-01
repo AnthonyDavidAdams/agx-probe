@@ -9,16 +9,20 @@ typedef enum { K_BITS, K_BYTE, K_F32 } FKind;
 
 typedef struct {
   int dcmp,dwrite,cull,wind,fill;
-  int scmp,spass;
-  uint32_t sref,sx;
+  int scmp,spass,sfail,dfail;
+  uint32_t sref,sx,sy;
   int twoDraw;
-  float bcr;
+  float bcr,bcg,bcb;
+  float clrR,clrG,clrB,clrA,clrD;
+  uint32_t rtW;
 } Cfg;
 
 static id<MTLDevice> dev; static id<MTLTexture> col,ds; static id<MTLCommandQueue> q;
 static id<MTLRenderPipelineState> pso;
 static IMP real_commit;
 static int g_cal=-1, g_patchval=-1, g_patchmask=0, g_hits=0, g_only=-1, g_lo=0, g_hi=1<<30;
+static int g_raw=0;                      /* replay mode: write captured B bytes */
+static uint8_t g_rawval[4096];
 #define MAXSITE 600
 static struct { int r; uint64_t o; int sh; } site[MAXSITE]; static int nsite=0;
 static int g_kind=K_BITS; static float g_fval=0;
@@ -28,7 +32,8 @@ static void hook(id s, SEL c){
   if(g_patchval>=0){ for(int i=0;i<nsite;i++){ if(g_only>=0 && i!=g_only) continue;
       if(g_only<0 && (i<g_lo||i>=g_hi)) continue;
       uint8_t *live=(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o);
-      if(g_kind==K_F32){ memcpy(live,&g_fval,4); }
+      if(g_raw){ *live=g_rawval[i]; }
+      else if(g_kind==K_F32){ memcpy(live,&g_fval,4); }
       else if(g_kind==K_BYTE){ *live=(uint8_t)g_patchval; }
       else { int sh=site[i].sh, m=g_patchmask<<sh;
              *live=(uint8_t)((*live & ~m) | ((g_patchval<<sh) & m)); } }
@@ -52,6 +57,8 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     MTLStencilDescriptor *sd=[MTLStencilDescriptor new];
     sd.stencilCompareFunction=(MTLCompareFunction)c.scmp;
     sd.depthStencilPassOperation=(MTLStencilOperation)c.spass;
+    sd.stencilFailureOperation=(MTLStencilOperation)c.sfail;
+    sd.depthFailureOperation=(MTLStencilOperation)c.dfail;
     sd.readMask=0xFF; sd.writeMask=0xFF;
     MTLDepthStencilDescriptor *x=[MTLDepthStencilDescriptor new];
     x.depthCompareFunction=(MTLCompareFunction)c.dcmp; x.depthWriteEnabled=(c.dwrite==1);
@@ -60,10 +67,11 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     id<MTLCommandBuffer> cb=[q commandBuffer];
     MTLRenderPassDescriptor *rp=[MTLRenderPassDescriptor renderPassDescriptor];
     rp.colorAttachments[0].texture=col; rp.colorAttachments[0].loadAction=MTLLoadActionClear;
-    rp.colorAttachments[0].clearColor=MTLClearColorMake(0,0,0,1);
+    rp.colorAttachments[0].clearColor=MTLClearColorMake(c.clrR,c.clrG,c.clrB,c.clrA);
     rp.colorAttachments[0].storeAction=MTLStoreActionStore;
+    rp.renderTargetWidth=c.rtW; rp.renderTargetHeight=64;
     rp.depthAttachment.texture=ds; rp.depthAttachment.loadAction=MTLLoadActionClear;
-    rp.depthAttachment.clearDepth=0.5; rp.depthAttachment.storeAction=MTLStoreActionDontCare;
+    rp.depthAttachment.clearDepth=c.clrD; rp.depthAttachment.storeAction=MTLStoreActionDontCare;
     rp.stencilAttachment.texture=ds; rp.stencilAttachment.loadAction=MTLLoadActionClear;
     rp.stencilAttachment.clearStencil=0; rp.stencilAttachment.storeAction=MTLStoreActionDontCare;
     id<MTLRenderCommandEncoder> en=[cb renderCommandEncoderWithDescriptor:rp];
@@ -71,8 +79,8 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     [en setCullMode:(MTLCullMode)c.cull]; [en setFrontFacingWinding:(MTLWinding)c.wind];
     [en setTriangleFillMode:(MTLTriangleFillMode)c.fill];
     [en setStencilReferenceValue:c.sref];
-    [en setScissorRect:(MTLScissorRect){c.sx,0,60,64}];
-    [en setBlendColorRed:c.bcr green:0.5 blue:0.5 alpha:1.0];
+    [en setScissorRect:(MTLScissorRect){c.sx,c.sy,60,60}];
+    [en setBlendColorRed:c.bcr green:c.bcg blue:c.bcb alpha:1.0];
     struct { float ox,oy,z,tint; } a1={0.0f,0.0f,0.2f,0.1f};
     [en setVertexBytes:&a1 length:sizeof a1 atIndex:0];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
@@ -119,6 +127,17 @@ static Field F[]={
   {"scissor.x",           O(sx),    0xFF, 0,28,0, K_BYTE},
   {"stencilReferenceValue",O(sref), 0xFF, 1,2, 2, K_BYTE},
   {"blendColor.red",      O(bcr),   0,  1.0,0.25,0, K_F32},
+  {"blendColor.green",    O(bcg),   0,  1.0,0.25,0, K_F32},
+  {"blendColor.blue",     O(bcb),   0,  1.0,0.50,0, K_F32},
+  {"clearColor.red",      O(clrR),  0,  0.0,0.75,0, K_F32},
+  {"clearColor.green",    O(clrG),  0,  0.0,0.50,0, K_F32},
+  {"clearColor.blue",     O(clrB),  0,  0.0,0.25,0, K_F32},
+  {"clearColor.alpha",    O(clrA),  0,  1.0,0.25,0, K_F32},
+  {"clearDepth",          O(clrD),  0,  0.5,0.05,0, K_F32},
+  {"scissor.y",           O(sy),    0xFF, 0,20, 0, K_BYTE},
+  {"renderTargetWidth",   O(rtW),   0xFF,64,40, 0, K_BYTE},
+  {"stencilFailOp",       O(sfail), 0x07, 2,0, 2, K_BITS},
+  {"depthFailOp",         O(dfail), 0x07, 2,0, 1, K_BITS},
 };
 #define NF (int)(sizeof(F)/sizeof(F[0]))
 
@@ -143,7 +162,7 @@ int main(void){ @autoreleasepool {
   Method m=class_getInstanceMethod(k,@selector(commit));
   real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
 
-  Cfg base={1,1,2,1,0, 7,0, 1,0, 0, 1.0f};
+  Cfg base={1,1,2,1,0, 7,0,0,0, 1,0,0, 0, 1.0f,1.0f,1.0f, 0.0f,0.0f,0.0f,1.0f,0.5f, 64};
   for(int i=0;i<4;i++) draw(base,-1,0,NULL);
   agx_locate(); agx_alloc(4);
   fprintf(stderr,"[val] %d regions tracked\n\n",r_n);
@@ -152,7 +171,7 @@ int main(void){ @autoreleasepool {
   printf("==========================================================================\n");
   printf("%-22s %-6s %-9s %-9s %-9s %s\n","FIELD","SITES","cov(A)","cov(B)","cov(A->B)","VERDICT");
   printf("--------------------------------------------------------------------------\n");
-  int pass=0,tested=0,noeffect=0;
+  int pass=0,tested=0,noeffect=0,weak=0;
   for(int i=0;i<NF;i++){
     fprintf(stderr,"[val] field %d/%d %s\n",i+1,NF,F[i].name);
     Cfg ca=base, cb2=base;
@@ -217,12 +236,56 @@ int main(void){ @autoreleasepool {
       printf("%-22s %-6d %8.1f%% %8.1f%% %8.1f%%  CAUSAL @ reg%d 0x%06llx bit%d (%d probes)\n",
              F[i].name,nsite,covA,covB,covW,
              site[winner].r,site[winner].o,site[winner].sh,probes);
-    } else {
+    }
+    if(winner<0){
+      /* Fallback: some fields need more than their own bits changed (a separate
+         enable, or a mirrored copy). Replay every differing byte, then bisect. */
+      nsite=0;
+      for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
+        if(snap[0][r][o]!=snap[2][r][o]) continue;          /* unstable across repeats */
+        if(snap[0][r][o]==snap[1][r][o]) continue;          /* unchanged A->B */
+        site[nsite].r=r; site[nsite].o=o; site[nsite].sh=0;
+        g_rawval[nsite]=snap[1][r][o]; nsite++; }
+      if(nsite){
+        g_raw=1; g_lo=0; g_hi=nsite;
+        uint64_t hAll2=draw(ca,0,0xFF,&covP);
+        if(hAll2==hB){
+          int lo2=0,hi2=nsite;
+          while(hi2-lo2>1){ int mid=(lo2+hi2)/2; g_lo=lo2; g_hi=mid;
+            uint64_t h2=draw(ca,0,0xFF,&covP);
+            if(h2==hB) hi2=mid; else lo2=mid; }
+          int minset=lo2+1;
+          g_lo=0; g_hi=minset;                 /* re-render the minimal set for an honest coverage */
+          uint64_t hMin=draw(ca,0,0xFF,&covP);
+          g_raw=0; g_lo=0; g_hi=1<<30;
+          /* Replaying ALL differing bytes is near-tautological -- it copies B's
+             state wholesale. Only a SMALL minimal set is real evidence that the
+             field is localised; a large one just says the state lives in the
+             regions we capture. */
+          if(hMin==hB && minset<=8){
+            printf("%-22s %-6d %8.1f%% %8.1f%% %8.1f%%  CAUSAL: %d-byte group\n",
+                   F[i].name,nsite,covA,covB,covP,minset);
+            pass++;
+          } else {
+            printf("%-22s %-6d %8.1f%% %8.1f%% %-9s state reproduced by %d bytes - NOT isolated\n",
+                   F[i].name,nsite,covA,covB,"-",minset);
+            weak++;
+          }
+          continue;
+        }
+        g_raw=0; g_lo=0; g_hi=1<<30;
+        printf("%-22s %-6d %8.1f%% %8.1f%% %-9s replaying all %d differing bytes still not B\n",
+               F[i].name,nsite,covA,covB,"-",nsite);
+        continue;
+      }
+    }
+    if(winner<0){
       printf("%-22s %-6d %8.1f%% %8.1f%% %-9s %s\n",
              F[i].name,nsite,covA,covB,"-",
              changedAny?"altered output but never reproduced B":"patching all candidates had no effect");
     }
   }
   printf("--------------------------------------------------------------------------\n");
-  printf("%d of %d testable fields proven causal (%d had no visible effect)\n",pass,tested,noeffect);
+  printf("%d of %d testable fields isolated causally; %d reproduced but not isolated; %d no visible effect\n",
+         pass,tested,weak,noeffect);
 }; return 0; }

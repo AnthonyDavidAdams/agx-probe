@@ -40,16 +40,32 @@ narrowed by bisection, so the tool names the *specific* causal byte.
 
 ```
 FIELD                  SITES  cov(A)  cov(B)  cov(A->B)  VERDICT
-depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0   (3 probes)
-cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0   (2 probes)
-frontFacingWinding     88     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0   (9 probes)
-stencilPassOp          392    25.8%   25.8%    25.8%     CAUSAL @ reg26 0x93e bit0  (11 probes)
-scissor.x              1      25.8%   17.0%    17.0%     CAUSAL @ reg19 0x012       (2 probes)
-blendColor.red         1      25.8%   25.8%    25.8%     CAUSAL @ reg21 0x620       (2 probes)
-triangleFillMode       407    25.8%    3.4%      -       altered output, never reproduced B
-stencilCompareFunc     50     25.8%    0.0%      -       patching had no effect
-depthWriteEnabled      6      25.8%   25.8%      -       patching had no effect
+depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0
+cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0
+frontFacingWinding     89     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0
+stencilPassOp          116    25.8%   25.8%    25.8%     CAUSAL @ reg26 0x93e bit0
+depthWriteEnabled      2      25.8%   25.8%    25.8%     CAUSAL: 1-byte group
+scissor.x / scissor.y  1      25.8%   17.0%    17.0%     CAUSAL @ reg19 0x012 / 0x016
+blendColor r/g/b       1      25.8%   25.8%    25.8%     CAUSAL @ reg21 0x620/624/628
+clearColor r/g/b/a     1      25.8%  100.0%   100.0%     CAUSAL @ reg16 0x0e0/e4/e8/ec
+triangleFillMode       96     25.8%    3.4%      -       reproduced by 90 bytes, NOT isolated
+stencilCompareFunc     95     25.8%    0.0%      -       reproduced by 95 bytes, NOT isolated
+renderTargetWidth      73     25.8%   16.1%      -       reproduced by 73 bytes, NOT isolated
+
+14 of 17 testable fields isolated causally; 3 reproduced but not isolated
 ```
+
+**Two strengths of evidence, kept apart deliberately.** A field is *isolated*
+when patching one byte (or a group of at most eight, found by bisection)
+reproduces B exactly. The weaker fallback replays every byte that differs
+between A and B — which is close to tautological, since copying B's bytes
+wholesale makes the memory equal B's. It shows the state lives in the regions we
+capture and bounds how many bytes are involved, nothing more. Reporting those
+three as "causal" would have inflated the count from 14 to 17.
+
+`depthWriteEnabled` moved from "no effect" to isolated by that fallback: its
+byte does not hold the Metal enum value, so pattern matching never proposed it,
+but bisection over raw differing bytes found a single byte that does the job.
 
 Note `stencilPassOp` and `blendColor.red` pass with **identical coverage** — the
 pixel-exact hash catches them because colour changed the predicted way while the
