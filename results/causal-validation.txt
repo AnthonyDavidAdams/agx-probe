@@ -2,26 +2,26 @@ CAUSAL VALIDATION -- patched(A->B) must be PIXEL-IDENTICAL to unpatched(B)
 ==========================================================================
 FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
 --------------------------------------------------------------------------
-depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg27 0x00093b bit0 (3 probes)
-cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg27 0x000998 bit0 (2 probes)
-frontFacingWinding     88         25.8%      0.0%      0.0%  CAUSAL @ reg27 0x00099a bit0 (9 probes)
-triangleFillMode       96         25.8%      3.4%      3.4%  CAUSAL: 1-byte group @ reg27:0x93a
-stencilCompareFunc     95         25.8%      0.0%      0.0%  CAUSAL: 2-byte group @ reg27:0x936 reg27:0x93f
-stencilPassOp          116        25.8%     25.8%     25.8%  CAUSAL @ reg27 0x00093e bit0 (9 probes)
-depthWriteEnabled      2          25.8%     25.8%     25.8%  CAUSAL: 1-byte group @ reg27:0x93a
-scissor.x              1          25.8%     17.0%     17.0%  CAUSAL @ reg20 0x000012 bit0 (2 probes)
+depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093b bit0 (3 probes)
+cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x000998 bit0 (2 probes)
+frontFacingWinding     86         25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00099a bit0 (9 probes)
+triangleFillMode       96         25.8%      3.4%      3.4%  CAUSAL: 1-byte group @ reg26:0x93a
+stencilCompareFunc     95         25.8%      0.0%      0.0%  CAUSAL: 2-byte group @ reg26:0x936 reg26:0x93f
+stencilPassOp          116        25.8%     25.8%     25.8%  CAUSAL @ reg26 0x00093e bit0 (9 probes)
+depthWriteEnabled      2          25.8%     25.8%     25.8%  CAUSAL: 1-byte group @ reg26:0x93a
+scissor.x              1          25.8%     17.0%     17.0%  CAUSAL @ reg19 0x000012 bit0 (2 probes)
 stencilReferenceValue  -          25.8%     25.8% -         no visible effect - untestable
-blendColor.red         1          25.8%     25.8%     25.8%  CAUSAL @ reg22 0x000620 bit0 (2 probes)
-blendColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg22 0x000624 bit0 (2 probes)
-blendColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg22 0x000628 bit0 (2 probes)
-clearColor.red         1          25.8%    100.0%    100.0%  CAUSAL @ reg17 0x0000e0 bit0 (2 probes)
-clearColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg17 0x0000e4 bit0 (2 probes)
-clearColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg17 0x0000e8 bit0 (2 probes)
-clearColor.alpha       1          25.8%     25.8%     25.8%  CAUSAL @ reg17 0x0000ec bit0 (2 probes)
-scissor.y              1          25.8%     24.4%     24.4%  CAUSAL @ reg20 0x000016 bit0 (2 probes)
-renderTargetWidth      73         25.8%     16.1%     16.1%  CAUSAL: 4-byte group @ reg27:0x972 reg27:0x973 reg27:0x976 reg27:0x977
+blendColor.red         1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000620 bit0 (2 probes)
+blendColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000624 bit0 (2 probes)
+blendColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000628 bit0 (2 probes)
+clearColor.red         1          25.8%    100.0%    100.0%  CAUSAL @ reg16 0x0000e0 bit0 (2 probes)
+clearColor.green       1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000e4 bit0 (2 probes)
+clearColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000e8 bit0 (2 probes)
+clearColor.alpha       1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000ec bit0 (2 probes)
+scissor.y              1          25.8%     24.4%     24.4%  CAUSAL @ reg19 0x000016 bit0 (2 probes)
+renderTargetWidth      73         25.8%     16.1%     16.1%  CAUSAL: 4-byte group @ reg26:0x972 reg26:0x973 reg26:0x976 reg26:0x977
 clearDepth             0          25.8%      0.0% -         no site calibrated
-stencilFailOp          2          25.8%      0.0%      0.0%  CAUSAL @ reg27 0x00093e bit6 (3 probes)
-depthFailOp            2          25.8%      0.0%      0.0%  CAUSAL @ reg27 0x00093e bit3 (3 probes)
+stencilFailOp          2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093e bit6 (3 probes)
+depthFailOp            2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093e bit3 (3 probes)
 --------------------------------------------------------------------------
 19 of 19 testable fields isolated causally; 0 reproduced but not isolated; 1 no visible effect

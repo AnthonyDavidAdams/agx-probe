@@ -35,11 +35,31 @@ identical runs (`stencilReferenceValue` gave 4 candidates once and 1636 the next
 time). The two that survive, `clearDepth` at `0xecf` and `clearStencil` at
 `0xed0`, are adjacent — a clear-value pair.
 
-One trap worth recording: `commitAndHold` dispatches `commit` dynamically, so a
-swizzle on `commit` fires *inside* the hold path and re-enters. Hold mode and the
-swizzle are mutually exclusive; install the swizzle only as the fallback. Applying
-hold mode to `validate_sampler`, which never needed it, took that probe from 7
-fields to 0 — a fix applied where there was no problem.
+Verification method differs by probe, deliberately. `validate_all` and
+`validate_sampler` are checked by running the **whole binary twice** and
+comparing; `validate_pass` re-derives each field twice **inside** one run,
+because its instability is per-field rather than per-run.
+
+That distinction is not cosmetic. Adding the internal two-rep wrapper to
+`validate_all` doubled its raw patching, and raw patching writes hundreds of
+arbitrary bytes into GPU command memory — enough of those produce a stream the
+GPU never retires, which wedges the device. External repetition verifies the same
+property without that cost.
+
+Two traps worth recording, both self-inflicted:
+
+- `commitAndHold` dispatches `commit` dynamically, so a swizzle on `commit` fires
+  *inside* the hold path and re-enters. Hold mode and the swizzle are mutually
+  exclusive; install the swizzle only as the fallback.
+- **Applying a fix where there was no problem, twice.** Hold mode took
+  `validate_sampler` from 7 fields to 0. The two-rep wrapper made `validate_all`
+  wedge the GPU repeatedly. Both probes were already working and already verified;
+  neither needed the change that broke it.
+
+Every probe now waits on a completion handler with a 4-second timeout instead of
+`waitUntilCompleted`, and treats a timeout or a faulted command buffer as a
+sentinel that can never match the target hash. A patch that hangs the GPU is a
+normal outcome of this method, not an exception.
 
 ## Validated by control, not correlation
 

@@ -110,7 +110,14 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     }
     [en endEncoding];
     g_patchval=patchval; g_patchmask=patchmask; g_hits=0;
-    [cb commit]; [cb waitUntilCompleted]; g_patchval=-1;
+    dispatch_semaphore_t sem=dispatch_semaphore_create(0);
+    [cb addCompletedHandler:^(id<MTLCommandBuffer> b){ (void)b; dispatch_semaphore_signal(sem); }];
+    [cb commit];
+    long timedout = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 4ll*NSEC_PER_SEC));
+    g_patchval=-1;
+    if(timedout || cb.status!=MTLCommandBufferStatusCompleted || cb.error){
+      if(cov)*cov=-1; return 0ULL;            /* sentinel: never equals a real hash */
+    }
     int W=64,H=64; uint8_t *px=malloc(W*H*4);
     [col getBytes:px bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];
     long lit=0;
