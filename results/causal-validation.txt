@@ -1,26 +1,90 @@
 [val] 33 regions tracked
 
 [val] field 1/21 depthCompareFunction
+      [cal]
+      [sites]
+      [bisect n=2]
 [val] field 2/21 cullMode
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 3/21 frontFacingWinding
+      [cal]
+      [sites]
+      [bisect n=89]
 [val] field 4/21 triangleFillMode
+      [cal]
+      [sites]
+      [bisect n=388]
+      [fallback]
+      [greedy minset=90]
 [val] field 5/21 stencilCompareFunc
+      [cal]
+      [sites]
+      [bisect n=2]
+      [fallback]
+      [greedy minset=95]
 [val] field 6/21 stencilPassOp
+      [cal]
+      [sites]
+      [bisect n=116]
 [val] field 7/21 depthWriteEnabled
+      [cal]
+      [sites]
+      [bisect n=3]
+      [fallback]
+      [greedy minset=1]
 [val] field 8/21 scissor.x
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 9/21 stencilReferenceValue
+      [cal]
 [val] field 10/21 blendColor.red
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 11/21 blendColor.green
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 12/21 blendColor.blue
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 13/21 clearColor.red
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 14/21 clearColor.green
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 15/21 clearColor.blue
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 16/21 clearColor.alpha
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 17/21 clearDepth
+      [cal]
+      [sites]
 [val] field 18/21 scissor.y
+      [cal]
+      [sites]
+      [bisect n=1]
 [val] field 19/21 renderTargetWidth
+      [cal]
+      [sites]
+      [bisect n=3]
+      [fallback]
+      [greedy minset=73]
 [val] field 20/21 stencilFailOp
+      [cal]
 [val] field 21/21 depthFailOp
+      [cal]
 CAUSAL VALIDATION -- patched(A->B) must be PIXEL-IDENTICAL to unpatched(B)
 ==========================================================================
 FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
@@ -28,10 +92,10 @@ FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
 depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093b bit0 (3 probes)
 cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x000998 bit0 (2 probes)
 frontFacingWinding     89         25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00099a bit0 (9 probes)
-triangleFillMode       96         25.8%      3.4% -         state reproduced by 90 bytes - NOT isolated
-stencilCompareFunc     95         25.8%      0.0% -         state reproduced by 95 bytes - NOT isolated
+triangleFillMode       96         25.8%      3.4%      3.4%  CAUSAL: 1-byte group @ reg26:0x93a
+stencilCompareFunc     95         25.8%      0.0%      0.0%  CAUSAL: 2-byte group @ reg26:0x936 reg26:0x93f
 stencilPassOp          116        25.8%     25.8%     25.8%  CAUSAL @ reg26 0x00093e bit0 (9 probes)
-depthWriteEnabled      2          25.8%     25.8%     25.8%  CAUSAL: 1-byte group
+depthWriteEnabled      2          25.8%     25.8%     25.8%  CAUSAL: 1-byte group @ reg26:0x93a
 scissor.x              1          25.8%     17.0%     17.0%  CAUSAL @ reg19 0x000012 bit0 (2 probes)
 stencilReferenceValue  -          25.8%     25.8% -         no visible effect - untestable
 blendColor.red         1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000620 bit0 (2 probes)
@@ -43,8 +107,8 @@ clearColor.blue        1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x00
 clearColor.alpha       1          25.8%     25.8%     25.8%  CAUSAL @ reg16 0x0000ec bit0 (2 probes)
 clearDepth             0          25.8%      0.0% -         no site calibrated
 scissor.y              1          25.8%     24.4%     24.4%  CAUSAL @ reg19 0x000016 bit0 (2 probes)
-renderTargetWidth      73         25.8%     16.1% -         state reproduced by 73 bytes - NOT isolated
+renderTargetWidth      73         25.8%     16.1%     16.1%  CAUSAL: 4-byte group @ reg26:0x972 reg26:0x973 reg26:0x976 reg26:0x977
 stencilFailOp          -          25.8%     25.8% -         no visible effect - untestable
 depthFailOp            -          25.8%     25.8% -         no visible effect - untestable
 --------------------------------------------------------------------------
-14 of 17 testable fields isolated causally; 3 reproduced but not isolated; 3 no visible effect
+17 of 17 testable fields isolated causally; 0 reproduced but not isolated; 3 no visible effect

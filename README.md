@@ -39,21 +39,45 @@ Candidate sites are found differentially over an 8-bit shift search, then
 narrowed by bisection, so the tool names the *specific* causal byte.
 
 ```
-FIELD                  SITES  cov(A)  cov(B)  cov(A->B)  VERDICT
-depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0
-cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0
-frontFacingWinding     89     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0
-stencilPassOp          116    25.8%   25.8%    25.8%     CAUSAL @ reg26 0x93e bit0
-depthWriteEnabled      2      25.8%   25.8%    25.8%     CAUSAL: 1-byte group
-scissor.x / scissor.y  1      25.8%   17.0%    17.0%     CAUSAL @ reg19 0x012 / 0x016
-blendColor r/g/b       1      25.8%   25.8%    25.8%     CAUSAL @ reg21 0x620/624/628
-clearColor r/g/b/a     1      25.8%  100.0%   100.0%     CAUSAL @ reg16 0x0e0/e4/e8/ec
-triangleFillMode       96     25.8%    3.4%      -       reproduced by 90 bytes, NOT isolated
-stencilCompareFunc     95     25.8%    0.0%      -       reproduced by 95 bytes, NOT isolated
-renderTargetWidth      73     25.8%   16.1%      -       reproduced by 73 bytes, NOT isolated
+FIELD                  VERDICT
+depthCompareFunction   CAUSAL @ reg26 0x93b bit0
+cullMode               CAUSAL @ reg26 0x998 bit0
+frontFacingWinding     CAUSAL @ reg26 0x99a bit0
+stencilPassOp          CAUSAL @ reg26 0x93e bit0
+scissor.x / scissor.y  CAUSAL @ reg19 0x012 / 0x016
+blendColor r/g/b       CAUSAL @ reg21 0x620 / 624 / 628
+clearColor r/g/b/a     CAUSAL @ reg16 0x0e0 / e4 / e8 / ec
+triangleFillMode       CAUSAL: 1-byte  @ reg26 0x93a
+depthWriteEnabled      CAUSAL: 1-byte  @ reg26 0x93a      <- same byte
+stencilCompareFunc     CAUSAL: 2-byte  @ reg26 0x936 + 0x93f
+renderTargetWidth      CAUSAL: 4-byte  @ reg26 0x972,973,976,977
 
-14 of 17 testable fields isolated causally; 3 reproduced but not isolated
+17 of 17 testable fields isolated causally
 ```
+
+Three of those were only reachable by a **raw-replay fallback with greedy subset
+reduction**: when pattern-matched candidates do nothing, replay every byte that
+differs between the two configs, bisect to a working prefix, then greedily drop
+bytes that turn out not to be needed. Bisection alone finds the smallest working
+*prefix*, which is an upper bound — a field needing bytes at positions 3 and 80
+forces the prefix to include all 80. Greedy reduction turns 73–95 byte
+"reproductions" into 1–4 byte isolations.
+
+The results are structural, not just locations:
+
+- **`0x93a` is a packed byte holding both `triangleFillMode` and
+  `depthWriteEnabled`.** Neither bit sits where its Metal enum value would put
+  it, which is exactly why bit-pattern matching never proposed either.
+- **`stencilCompareFunc` needs `0x936` as well as its own field at `0x93f`** —
+  a separate enable. Writing the compare function without it is inert, which is
+  why the field looked correct under correlation and did nothing under patching.
+- **`renderTargetWidth` is 16-bit at `0x972`, mirrored at `0x976`**, beside the
+  viewport scale at `0x970`.
+
+Only a minimal set of eight bytes or fewer counts as isolation. Replaying every
+differing byte is near-tautological — it copies B's state wholesale — and an
+earlier run of this tool would have claimed 17 of 17 on that basis when the
+honest number was 14.
 
 **Two strengths of evidence, kept apart deliberately.** A field is *isolated*
 when patching one byte (or a group of at most eight, found by bisection)

@@ -21,7 +21,7 @@ static id<MTLDevice> dev; static id<MTLTexture> col,ds; static id<MTLCommandQueu
 static id<MTLRenderPipelineState> pso;
 static IMP real_commit;
 static int g_cal=-1, g_patchval=-1, g_patchmask=0, g_hits=0, g_only=-1, g_lo=0, g_hi=1<<30;
-static int g_raw=0;                      /* replay mode: write captured B bytes */
+static int g_raw=0; static uint8_t g_skip[4096];                      /* replay mode: write captured B bytes */
 static uint8_t g_rawval[4096];
 #define MAXSITE 600
 static struct { int r; uint64_t o; int sh; } site[MAXSITE]; static int nsite=0;
@@ -31,6 +31,7 @@ static void hook(id s, SEL c){
   if(g_cal>=0) agx_snapshot(g_cal);
   if(g_patchval>=0){ for(int i=0;i<nsite;i++){ if(g_only>=0 && i!=g_only) continue;
       if(g_only<0 && (i<g_lo||i>=g_hi)) continue;
+      if(g_raw && g_skip[i]) continue;
       uint8_t *live=(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o);
       if(g_raw){ *live=g_rawval[i]; }
       else if(g_kind==K_F32){ memcpy(live,&g_fval,4); }
@@ -185,12 +186,13 @@ int main(void){ @autoreleasepool {
     g_kind=F[i].kind; g_fval=(float)F[i].b;
     double covA,covB,covP;
     /* calibrate on runs 0/1/2 */
-    g_cal=0; uint64_t hA=draw(ca,-1,0,&covA);
+    fprintf(stderr,"      [cal]\n"); g_cal=0; uint64_t hA=draw(ca,-1,0,&covA);
     g_cal=1; uint64_t hB=draw(cb2,-1,0,&covB);
     g_cal=2; draw(ca,-1,0,NULL);
     g_cal=-1;
     if(hA==hB){ printf("%-22s %-6s %8.1f%% %8.1f%% %-9s no visible effect - untestable\n",
                        F[i].name,"-",covA,covB,"-"); noeffect++; continue; }
+    fprintf(stderr,"      [sites]\n");
     nsite=0;
     for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
       if(F[i].kind==K_F32){
@@ -216,6 +218,7 @@ int main(void){ @autoreleasepool {
     if(!nsite){ printf("%-22s %-6d %8.1f%% %8.1f%% %-9s no site calibrated\n",F[i].name,0,covA,covB,"-"); continue; }
     /* try each candidate individually: the causal byte is the one whose patch
        reproduces B exactly. Shotgunning all candidates corrupts unrelated state. */
+    fprintf(stderr,"      [bisect n=%d]\n",nsite);
     int winner=-1, changedAny=0; double covW=0; int probes=0;
     /* bisect: does patching [lo,hi) reproduce B? narrow until a single site */
     int lo=0, hi=nsite;
@@ -240,8 +243,10 @@ int main(void){ @autoreleasepool {
     if(winner<0){
       /* Fallback: some fields need more than their own bits changed (a separate
          enable, or a mirrored copy). Replay every differing byte, then bisect. */
+      fprintf(stderr,"      [fallback]\n");
+      #define RAWCAP 160
       nsite=0;
-      for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
+      for(int r=0;r<r_n && nsite<RAWCAP;r++) for(uint64_t o=0;o<r_size[r] && nsite<RAWCAP;o++){
         if(snap[0][r][o]!=snap[2][r][o]) continue;          /* unstable across repeats */
         if(snap[0][r][o]==snap[1][r][o]) continue;          /* unchanged A->B */
         site[nsite].r=r; site[nsite].o=o; site[nsite].sh=0;
@@ -255,8 +260,30 @@ int main(void){ @autoreleasepool {
             uint64_t h2=draw(ca,0,0xFF,&covP);
             if(h2==hB) hi2=mid; else lo2=mid; }
           int minset=lo2+1;
-          g_lo=0; g_hi=minset;                 /* re-render the minimal set for an honest coverage */
+          /* Greedy subset reduction: the prefix is an upper bound, not minimal.
+             Costs one render per candidate, so cap it -- a prefix already in the
+             hundreds is not going to reduce to an isolated field. */
+          #define GREEDY_CAP 200
+          memset(g_skip,0,sizeof g_skip);
+          g_lo=0; g_hi=minset;
+          fprintf(stderr,"      [greedy minset=%d]\n",minset);
+          for(int d=0; d<minset && minset<=GREEDY_CAP; d++){
+            g_skip[d]=1;
+            uint64_t hd=draw(ca,0,0xFF,&covP);
+            if(hd!=hB) g_skip[d]=0;            /* needed after all */
+          }
+          int kept=0; int keptIdx[16]; int nk=0;
+          for(int d=0; d<minset; d++) if(!g_skip[d]){ kept++; if(nk<16) keptIdx[nk++]=d; }
+          minset=kept;
           uint64_t hMin=draw(ca,0,0xFF,&covP);
+          if(hMin==hB && kept<=8){
+            printf("%-22s %-6d %8.1f%% %8.1f%% %8.1f%%  CAUSAL: %d-byte group @",
+                   F[i].name,nsite,covA,covB,covP,kept);
+            for(int t=0;t<nk;t++) printf(" reg%d:0x%llx",site[keptIdx[t]].r,site[keptIdx[t]].o);
+            printf("\n");
+            pass++; memset(g_skip,0,sizeof g_skip); g_raw=0; g_lo=0; g_hi=1<<30; continue;
+          }
+          memset(g_skip,0,sizeof g_skip);
           g_raw=0; g_lo=0; g_hi=1<<30;
           /* Replaying ALL differing bytes is near-tautological -- it copies B's
              state wholesale. Only a SMALL minimal set is real evidence that the
