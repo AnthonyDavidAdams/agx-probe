@@ -11,6 +11,31 @@ state, capture the bytes the driver sends the GPU, and diff.
 
 Tested on **Apple M4 (AGX G16G, `AGXMetalG16G_B0`), macOS 15.6**.
 
+## Reproducibility, measured
+
+A causal result is worth nothing if the next run disagrees, so each validator was
+run twice and the field sets compared.
+
+| Probe | Fields | Reproducible? |
+|---|---|---|
+| `validate_all` | 19 | **Yes** — two runs, identical field set and identical offsets |
+| `validate_sampler` | 7 | not yet re-tested after the hold-mode change |
+| `validate_pass` | 4 | **No** — two consecutive runs of the same binary agreed on one field only |
+
+`validate_pass` is the outlier and the reason is in its scene: it renders **two
+passes** and deliberately carries colour-buffer content between them, because
+`loadAction` cannot be tested any other way. That history-dependence makes the
+whole measurement order-sensitive, and candidate counts swing by orders of
+magnitude between identical runs (`stencilReferenceValue` gave 4 candidates on
+one run and 1636 on the next). `validate_all` and `validate_sampler` clear to a
+fixed value every pass and are stable.
+
+**Treat the four `validate_pass` fields as provisional** — `clearDepth` at reg10
+`0xecf` reproduced in both runs and is the strongest of them; `clearStencil`
+`0xed0`, `stencilReferenceValue` `0x1338` and `renderTargetWidth` `0x136a` each
+appeared in one run only. Strengthening calibration to A,B,A,B and requiring both
+repeats to agree reduced spurious candidates but did not make the probe stable.
+
 ## Validated by control, not correlation
 
 Every offset below is inferred from correlation — change a state, watch bytes

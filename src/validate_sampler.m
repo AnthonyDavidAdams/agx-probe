@@ -6,6 +6,15 @@
    isolated when a set of eight bytes or fewer reproduces B pixel-exactly. */
 #import "agxcommon.h"
 
+/* See validate_pass.m: commitAndHold runs the whole driver write path with wake=0,
+   so capture and patch happen at the same instant, before the GPU reads anything. */
+@interface NSObject (AGXHold)
+- (void)commitAndHold;
+- (BOOL)submitCommandBuffer:(id)cb;
+@end
+static int g_hold=0;
+
+
 typedef struct { int minF,magF,mipF,addrS,addrT,cmpF,border; float lodMin,lodMax; } Cfg;
 
 static id<MTLDevice> dev; static id<MTLTexture> col,tex,dtex; static id<MTLCommandQueue> q;
@@ -62,7 +71,17 @@ static uint64_t draw(Cfg c, int apply, double *cov){
     [en setFragmentTexture:tex atIndex:0]; [en setFragmentTexture:dtex atIndex:1];
     [en setFragmentSamplerState:s atIndex:0]; [en setFragmentSamplerState:cs atIndex:1];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding];
-    g_apply=apply; [cb commit]; [cb waitUntilCompleted]; g_apply=0;
+    if(g_hold){
+      dispatch_semaphore_t sem=dispatch_semaphore_create(0);
+      [cb addCompletedHandler:^(id<MTLCommandBuffer> b){ (void)b; dispatch_semaphore_signal(sem); }];
+      [(id)cb commitAndHold];
+      if(g_run>=0 && g_run<MAXRUN) agx_snapshot(g_run);
+      if(apply) for(int i=0;i<nsite;i++){
+        if(i<g_lo||i>=g_hi||skip[i]) continue;
+        *(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o)=rawval[i]; }
+      if(![(id)q submitCommandBuffer:cb]){ if(cov)*cov=-1; return 0ULL; }
+      if(dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 3ll*NSEC_PER_SEC))){ if(cov)*cov=-1; return 0ULL; }
+    } else { g_apply=apply; [cb commit]; [cb waitUntilCompleted]; g_apply=0; }
     if(cb.status!=MTLCommandBufferStatusCompleted || cb.error){ if(cov)*cov=-1; return 0ULL; }
     int W=64,H=64; uint8_t *px=malloc(W*H*4);
     [col getBytes:px bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];
@@ -111,9 +130,12 @@ int main(void){ @autoreleasepool {
   Method m=class_getInstanceMethod(k,@selector(commit));
   real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
 
+  g_hold = [(id)[q commandBuffer] respondsToSelector:@selector(commitAndHold)]
+        && [(id)q respondsToSelector:@selector(submitCommandBuffer:)];
+  fprintf(stderr,"[vs] hold-mode %s\n", g_hold?"ENABLED":"unavailable");
   Cfg base={1,1,1, 5,5, 1, 0, 0.0f,4.0f};
   for(int i=0;i<4;i++) draw(base,0,NULL);
-  agx_locate(); agx_alloc(4);
+  agx_locate(); agx_alloc(6);
   fprintf(stderr,"[vs] %d regions\n\n",r_n);
   printf("SAMPLER STATE, VALIDATED BY CONTROL (pixel-exact)\n");
   printf("=================================================================\n");
@@ -125,15 +147,21 @@ int main(void){ @autoreleasepool {
     *(int*)((char*)&ca +F[i].off)=F[i].a;
     *(int*)((char*)&cb2+F[i].off)=F[i].b;
     double covA,covB,covP;
+    /* Calibrate A,B,A,B and require BOTH repeats to agree. With a single repeat
+       (A,B,A) any byte that merely drifts survives as a candidate, which is why
+       candidate counts swung by orders of magnitude between identical runs. */
     g_run=0; uint64_t hA=draw(ca,0,&covA);
     g_run=1; uint64_t hB=draw(cb2,0,&covB);
-    g_run=2; draw(ca,0,NULL); g_run=-1;
+    g_run=2; uint64_t hA2=draw(ca,0,NULL);
+    g_run=3; uint64_t hB2=draw(cb2,0,NULL); g_run=-1;
+    if(hA!=hA2 || hB!=hB2){ printf("%-26s %-7s %-9s NON-REPRODUCIBLE render\n",F[i].name,"-","-"); continue; }
     if(hA==hB){ printf("%-26s %-7s %-9s no visible effect\n",F[i].name,"-","-"); continue; }
     tested++;
     nsite=0; memset(skip,0,sizeof skip);
-    for(int r=0;r<r_n && nsite<1500;r++) for(uint64_t o=0;o<r_size[r] && nsite<1500;o++){
-      if(snap[0][r][o]!=snap[2][r][o]) continue;
-      if(snap[0][r][o]==snap[1][r][o]) continue;
+    for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
+      if(snap[0][r][o]!=snap[2][r][o]) continue;      /* A stable across its repeat */
+      if(snap[1][r][o]!=snap[3][r][o]) continue;      /* B stable across its repeat */
+      if(snap[0][r][o]==snap[1][r][o]) continue;      /* and genuinely differs A->B */
       site[nsite].r=r; site[nsite].o=o; rawval[nsite]=snap[1][r][o]; nsite++; }
     if(!nsite){ printf("%-26s %-7d %-9s no candidates\n",F[i].name,0,"-"); continue; }
     g_lo=0; g_hi=0;                       /* patch nothing: must NOT match B */
@@ -158,7 +186,13 @@ int main(void){ @autoreleasepool {
       printf("%-26s %-7d %8.1f%%  CAUSAL: %d-byte @",F[i].name,nsite,covP,kept);
       for(int t=0;t<nk;t++) printf(" reg%d:0x%llx",site[idx[t]].r,site[idx[t]].o);
       printf("\n");
-    } else printf("%-26s %-7d %-9s reproduced by %d bytes - not isolated\n",F[i].name,nsite,"-",kept);
+    } else if(hM==hB){
+      int nr=0,rs[8]; uint64_t lo9=~0ULL,hi9=0;
+      for(int d=0;d<nsite;d++) if(!skip[d]){ if(site[d].o<lo9)lo9=site[d].o; if(site[d].o>hi9)hi9=site[d].o;
+        int seen=0; for(int t=0;t<nr;t++) if(rs[t]==site[d].r) seen=1; if(!seen&&nr<8) rs[nr++]=site[d].r; }
+      printf("%-26s %-7d %8.1f%%  1-MINIMAL %d bytes across %d region(s), 0x%llx..0x%llx\n",
+             F[i].name,nsite,covP,kept,nr,lo9,hi9);
+    } else printf("%-26s %-7d %-9s reduction did not converge (%d)\n",F[i].name,nsite,"-",kept);
   }
   printf("-----------------------------------------------------------------\n");
   printf("%d of %d testable sampler fields isolated causally\n",pass,tested);
