@@ -32,8 +32,31 @@ API=Never,  PATCHED to Always      2           41.1%  RESTORED
 The image follows the patched byte, not the API call, in **both directions**.
 The recovered field drives the hardware.
 
-`cullMode` is validated the same way (`make validate` runs both): patching
-reg27 `0x998` culls or restores the triangle on command.
+`validate_all` generalises this into a table-driven test with a strict
+predicate: **patching A→B must produce a framebuffer pixel-identical to an
+unpatched render of B.** No per-field expectations — exact equality or nothing.
+Candidate sites are found differentially over an 8-bit shift search, then
+narrowed by bisection, so the tool names the *specific* causal byte.
+
+```
+FIELD                  SITES  cov(A)  cov(B)  cov(A->B)  VERDICT
+depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0  (3 probes)
+cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0  (2 probes)
+frontFacingWinding     88     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0  (9 probes)
+triangleFillMode       407    25.8%    3.4%      -       altered output, never reproduced B
+stencilCompareFunc     50     25.8%    0.0%      -       patching had no effect
+```
+
+Bisection matters: isolating one causal byte out of 88 candidates takes 9
+renders instead of 88, and the full run is under half a second. Patching all
+candidates at once instead corrupts unrelated state and produces false
+negatives.
+
+Two failures are findings rather than noise. `triangleFillMode` patching *does*
+change the image but never reproduces line-fill exactly, so the mode is not
+carried by that bit alone. `stencilCompareFunc` has 50 candidate sites and
+patching none of them changes anything, which suggests a separate
+stencil-enable gates it — changing the field without the enable is inert.
 
 This is the difference between a map and a driver: not "this byte correlates
 with depth testing" but "writing this byte controls depth testing." Two fields

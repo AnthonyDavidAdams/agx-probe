@@ -1,0 +1,15 @@
+[val] 33 regions tracked
+
+CAUSAL VALIDATION -- patched(A->B) must be PIXEL-IDENTICAL to unpatched(B)
+==========================================================================
+FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
+--------------------------------------------------------------------------
+depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg25 0x00093b bit0 (3 probes)
+cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg25 0x000998 bit0 (2 probes)
+frontFacingWinding     88         25.8%      0.0%      0.0%  CAUSAL @ reg25 0x00099a bit0 (9 probes)
+triangleFillMode       407        25.8%      3.4% -         altered output but never reproduced B
+stencilCompareFunc     50         25.8%      0.0% -         patching all candidates had no effect
+stencilPassOp          -          25.8%     25.8% -         no visible effect - untestable
+depthWriteEnabled      -          32.1%     32.1% -         no visible effect - untestable
+--------------------------------------------------------------------------
+3 of 5 testable fields proven causal (2 had no visible effect)
