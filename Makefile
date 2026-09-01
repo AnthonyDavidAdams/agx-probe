@@ -1,7 +1,7 @@
 CC      = clang
 CFLAGS  = -fobjc-arc -O2 -Wall -Isrc
 FRAME   = -framework Foundation -framework Metal
-BIN     = build/state_probe build/isa_probe
+BIN     = build/state_probe build/isa_probe build/write_probe
 
 all: $(BIN)
 
@@ -16,6 +16,9 @@ run: all
 	./build/isa_probe   > results/isa-map.txt   2> results/isa-log.txt & \
 	wait
 
+validate: build/write_probe
+	./build/write_probe
+
 clean:
 	rm -rf build
-.PHONY: all run clean
+.PHONY: all run validate clean

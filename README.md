@@ -11,6 +11,34 @@ state, capture the bytes the driver sends the GPU, and diff.
 
 Tested on **Apple M4 (AGX G16G, `AGXMetalG16G_B0`), macOS 15.6**.
 
+## Validated by control, not correlation
+
+Every offset below is inferred from correlation — change a state, watch bytes
+move. `write_probe` closes that gap. It calibrates the location of
+`depthCompareFunction` at runtime, then **overwrites that byte in GPU-visible
+memory at commit** and checks the rendered image.
+
+```
+Triangle at z=0.0, depth buffer cleared to 0.5. Coverage = % of frame lit.
+
+CONDITION                          PATCHED  COVERAGE  VERDICT
+API=Always, unpatched              -           41.1%  visible
+API=Never,  unpatched              -            0.0%  absent
+--------------------------------------------------------------
+API=Always, PATCHED to Never       2            0.0%  SUPPRESSED
+API=Never,  PATCHED to Always      2           41.1%  RESTORED
+```
+
+The image follows the patched byte, not the API call, in **both directions**.
+The recovered field drives the hardware.
+
+This is the difference between a map and a driver: not "this byte correlates
+with depth testing" but "writing this byte controls depth testing." Only
+`depthCompareFunction` has been validated this way so far; the rest of the map
+remains correlational until each field gets the same treatment.
+
+Run it with `make validate`.
+
 ## Results
 
 ### Depth/stencil descriptor — 8 bytes per face

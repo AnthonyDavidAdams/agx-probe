@@ -1,0 +1,20 @@
+[write] 33 IOACCELERATOR regions
+
+[write] calibrated 2 depthCompareFunction site(s)
+[write]   reg27 0x00093b
+[write]   reg27 0x000943
+VALIDATING THE MAP BY CONTROL
+Triangle at z=0.0, depth cleared to 0.5. Coverage = % of frame lit.
+=================================================================
+CONDITION                          PATCHED  COVERAGE  VERDICT
+-----------------------------------------------------------------
+API=Always, unpatched              -           41.1%   visible
+API=Never, unpatched               -            0.0%   absent
+API=Less, unpatched                -           41.1%   visible
+-----------------------------------------------------------------
+API=Always, PATCHED to Never       2            0.0%   SUPPRESSED  <-- control
+API=Never, PATCHED to Always       2           41.1%   RESTORED  <-- control
+-----------------------------------------------------------------
+
+RESULT: the rendered image follows the PATCHED byte, not the API call.
+        The recovered field drives the hardware. Map validated by control.
