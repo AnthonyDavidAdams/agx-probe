@@ -63,6 +63,7 @@ static uint64_t draw(Cfg c, int apply, double *cov){
     [en setFragmentSamplerState:s atIndex:0]; [en setFragmentSamplerState:cs atIndex:1];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding];
     g_apply=apply; [cb commit]; [cb waitUntilCompleted]; g_apply=0;
+    if(cb.status!=MTLCommandBufferStatusCompleted || cb.error){ if(cov)*cov=-1; return 0ULL; }
     int W=64,H=64; uint8_t *px=malloc(W*H*4);
     [col getBytes:px bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];
     long lit=0; for(int i=0;i<W*H*4;i++){ h^=px[i]; h*=1099511628211ULL; }
@@ -135,14 +136,23 @@ int main(void){ @autoreleasepool {
       if(snap[0][r][o]==snap[1][r][o]) continue;
       site[nsite].r=r; site[nsite].o=o; rawval[nsite]=snap[1][r][o]; nsite++; }
     if(!nsite){ printf("%-26s %-7d %-9s no candidates\n",F[i].name,0,"-"); continue; }
+    g_lo=0; g_hi=0;                       /* patch nothing: must NOT match B */
+    if(draw(ca,1,&covP)==hB){ printf("%-24s %-7d %-9s DEGENERATE oracle (empty patch matches B)\n",F[i].name,nsite,"-"); continue; }
+{ printf("%-26s %-7d %-9s replay of all %d bytes not B\n",F[i].name,nsite,"-",nsite); continue; }
+    /* Leave-one-out to fixpoint over the FULL candidate set.
+       The previous code bisected first, but g_lo/g_hi select a WINDOW [lo,mid),
+       not a prefix, so a failed probe discarded [0,lo) untested -- only correct
+       when exactly one byte is causal. And the greedy pass was gated on
+       minset<=256, a loop-invariant condition, so for large sets it ran zero
+       times and reported the full set as if it were minimal. */
     g_lo=0; g_hi=nsite;
-    if(draw(ca,1,&covP)!=hB){ printf("%-26s %-7d %-9s replay of all %d bytes not B\n",F[i].name,nsite,"-",nsite); continue; }
-    int lo=0,hi=nsite;
-    while(hi-lo>1){ int mid=(lo+hi)/2; g_lo=lo; g_hi=mid;
-      if(draw(ca,1,&covP)==hB) hi=mid; else lo=mid; }
-    int minset=lo+1; g_lo=0; g_hi=minset;
-    for(int d=0;d<minset && minset<=256;d++){ skip[d]=1; if(draw(ca,1,&covP)!=hB) skip[d]=0; }
-    int kept=0,idx[8],nk=0; for(int d=0;d<minset;d++) if(!skip[d]){ kept++; if(nk<8) idx[nk++]=d; }
+    int changed=1, passes=0;
+    while(changed && passes<8){ changed=0; passes++;
+      for(int d=0; d<nsite; d++){
+        if(skip[d]) continue;
+        skip[d]=1;
+        if(draw(ca,1,&covP)!=hB) skip[d]=0; else changed=1; } }
+    int kept=0,idx[16],nk=0; for(int d=0;d<nsite;d++) if(!skip[d]){ kept++; if(nk<16) idx[nk++]=d; }
     uint64_t hM=draw(ca,1,&covP); g_lo=0; g_hi=1<<30; memset(skip,0,sizeof skip);
     if(hM==hB && kept<=8){ pass++;
       printf("%-26s %-7d %8.1f%%  CAUSAL: %d-byte @",F[i].name,nsite,covP,kept);

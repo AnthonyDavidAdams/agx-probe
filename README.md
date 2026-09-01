@@ -359,31 +359,53 @@ produced plausible garbage first:
   kernels' code sits at different offsets in their frames. Single-kernel
   bit-flipping avoids the problem entirely.
 
-## A structural limit: observable is not the same as controllable
+## Holding the command buffer: capture point == patch point
 
-`validate_pass` proves `stencilReferenceValue` at reg26 `0x1338` and fails on
-most other render-pass fields — and the failures are informative rather than
-noise. The probes **capture after** commit (needed, or `clearDepth` reads a
-submission stale) but **patch before** it. For any state the driver writes
-*during* commit, its own write lands moments after the patch and clobbers it.
+The probes captured *after* commit (required, or `clearDepth` reads one submission
+stale) but patched *before* it, so state the driver writes during commit was
+clobbered by its own write. Measured patch survival made that concrete —
+`clearDepth` 2/6 bytes, `clearStencil` 2/3, versus `stencilReferenceValue` 4/4,
+which was the only field that validated.
 
-Measuring patch survival makes this explicit:
+The fix is a private pair on Metal's internal classes:
 
+```objc
+[(id)cb commitAndHold];        // full driver write path, but wake = 0
+agx_snapshot(run);             // capture
+patch_sites();                 // patch -- same instant
+[(id)q submitCommandBuffer:cb] // ring the doorbell
 ```
-clearDepth              2/6 bytes survived     driver overwrote 4
-clearStencil            2/3 survived           overwrote 1
-stencilReferenceValue   4/4 survived           -> CAUSAL
-renderTargetWidth     791/791 survived         survived, but too diffuse to isolate
-color.loadAction      297/319 survived         22 clobbered
-```
 
-The only field whose patch fully survived is the only one that validated. So
-these are not mis-located fields; they sit in a window this instrument cannot
-write to. Controlling them needs a hook between the driver's write and the GPU's
-read — inside commit, after the state lands, before the doorbell.
+`commitAndHold` runs AGX `commit` -> `commitEncoder` -> IOGPU `commit` ->
+`FinalizeShmemHeader` and then declines to submit, which opens a window after
+every userspace write and before the GPU reads anything. `clearDepth` went from
+unreachable to `CAUSAL: 1-byte @ reg10 0xecf`.
 
-Reporting survival alongside every failure is what separates "wrong field" from
-"patch never took", and that distinction was invisible until it was measured.
+Two rules if you use it: never call `waitUntilCompleted` on a held buffer (it is
+a bare condition wait with no submit fallback and hangs), and check the `BOOL`
+from `submitCommandBuffer:` — it flushes every committed buffer on the queue, so
+keep one in flight.
+
+## The reduction search was never running
+
+`renderTargetWidth` was reported as "reproduced by 791 bytes, not isolated" for
+several runs. That number was not a measurement: the greedy pass was guarded by
+`minset<=256`, a loop-invariant condition, so at 791 the body executed zero times
+and the full set fell through as if minimal. Greedy had never run on that field.
+
+The bisection it followed was also wrong — `g_lo/g_hi` select a *window*
+`[lo,mid)`, not a prefix, so a failed probe discarded `[0,lo)` untested. That is
+only correct when exactly one byte is causal.
+
+Replacing both with leave-one-out to fixpoint over the full candidate set gives
+`CAUSAL: 4-byte @ 0x136a, 0x136b, 0x136e, 0x136f` — two pairs four bytes apart,
+the high bytes of a value and its mirror.
+
+Two guards came with it. A **fault sentinel**: if a patched submit faults, the
+readback returns the *previous* render's pixels, which during a drop loop is
+often the render that produced B — a false pass that permanently deletes a
+needed byte. And a **degenerate-oracle check**: render with an empty patch set
+first and assert it does not already match B.
 
 ## Firmware ring
 

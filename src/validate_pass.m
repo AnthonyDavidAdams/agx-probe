@@ -7,6 +7,20 @@
    Encoding-agnostic: raw replay of differing bytes, bisect, greedy reduce. */
 #import "agxcommon.h"
 
+/* -[_MTLCommandBuffer commitAndHold] runs the ENTIRE driver write path (AGX commit ->
+   commitEncoder -> IOGPU commit -> FinalizeShmemHeader) but leaves wake=0, so nothing
+   is submitted. -[_MTLCommandQueue submitCommandBuffer:] then rings the doorbell.
+   That gives a window after every userspace write and before the GPU reads anything --
+   so capture point and patch point become the same point, which the swizzle could
+   never achieve (it captured post-commit but patched pre-commit).
+   waitUntilCompleted must NOT be used with a held buffer: it is a bare condition wait
+   with no submit fallback and hangs. */
+@interface NSObject (AGXHold)
+- (void)commitAndHold;
+- (BOOL)submitCommandBuffer:(id)cb;
+@end
+static int g_hold=0;
+
 typedef struct {
   float clrD; uint32_t clrS, sref, rtW;
   int cLoad,cStore,dLoad,sLoad,visMode;
@@ -80,7 +94,25 @@ static uint64_t draw(Cfg c,int apply,double *cov){
     struct { float z,tint; } a1={0.5f,0.2f};      /* z=0.5 straddles the clearDepth sweep */
     [en setVertexBytes:&a1 length:sizeof a1 atIndex:0];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3]; [en endEncoding];
-    g_apply=apply; [cb commit]; [cb waitUntilCompleted]; g_apply=0;
+    if(g_hold){
+      dispatch_semaphore_t sem=dispatch_semaphore_create(0);
+      [cb addCompletedHandler:^(id<MTLCommandBuffer> b){ (void)b; dispatch_semaphore_signal(sem); }];
+      [(id)cb commitAndHold];                                  /* full write path, wake=0 */
+      if(g_run>=0 && g_run<MAXRUN) agx_snapshot(g_run);        /* capture == patch point */
+      if(apply) for(int i=0;i<nsite;i++){
+        if(i<g_lo||i>=g_hi||skip[i]) continue;
+        *(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o)=rawval[i]; }
+      if(apply && g_diag){ int sv=0,tt=0;
+        for(int i=0;i<nsite;i++){ if(i<g_lo||i>=g_hi||skip[i]) continue; tt++;
+          if(*(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o)==rawval[i]) sv++; }
+        fprintf(stderr,"      [survival %d/%d]\n",sv,tt); }
+      if(![(id)q submitCommandBuffer:cb]){ fprintf(stderr,"submit refused\n"); if(cov)*cov=-1; return 0ULL; }
+      if(dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 3ll*NSEC_PER_SEC))){
+        fprintf(stderr,"submit wedged\n"); if(cov)*cov=-1; return 0ULL; }
+    } else {
+      g_apply=apply; [cb commit]; [cb waitUntilCompleted]; g_apply=0;
+    }
+    if(cb.status!=MTLCommandBufferStatusCompleted || cb.error){ if(cov)*cov=-1; return 0ULL; }
     int W=64,H=64; uint8_t *px=malloc(W*H*4);
     [col getBytes:px bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];
     long lit=0; for(int i=0;i<W*H*4;i++){ h^=px[i]; h*=1099511628211ULL; }
@@ -123,6 +155,9 @@ int main(void){ @autoreleasepool {
   Method m=class_getInstanceMethod(k,@selector(commit));
   real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
 
+  g_hold = [(id)[q commandBuffer] respondsToSelector:@selector(commitAndHold)]
+        && [(id)q respondsToSelector:@selector(submitCommandBuffer:)];
+  fprintf(stderr,"[vp] hold-mode %s\n", g_hold?"ENABLED (capture==patch point)":"unavailable, falling back to swizzle");
   Cfg base={0.9f, 3, 3, 64, 2,1,2,2, 0};
   for(int i=0;i<4;i++) draw(base,0,NULL);
   agx_locate(); agx_alloc(4);
@@ -149,15 +184,25 @@ int main(void){ @autoreleasepool {
       if(snap[0][r][o]==snap[1][r][o]) continue;
       site[nsite].r=r; site[nsite].o=o; rawval[nsite]=snap[1][r][o]; nsite++; }
     if(!nsite){ printf("%-24s %-7d %-9s no candidates\n",F[i].name,0,"-"); continue; }
+    g_lo=0; g_hi=0;                    /* patch nothing: must NOT already match B */
+    if(draw(ca,1,&covP)==hB){ printf("%-24s %-7d %-9s DEGENERATE oracle (empty patch matches B)\n",F[i].name,nsite,"-"); continue; }
     g_lo=0; g_hi=nsite; g_diag=1;
     if(draw(ca,1,&covP)!=hB){ g_diag=0; printf("%-24s %-7d %-9s replay not B\n",F[i].name,nsite,"-"); continue; }
     g_diag=0;
-    int lo=0,hi=nsite;
-    while(hi-lo>1){ int mid=(lo+hi)/2; g_lo=lo; g_hi=mid;
-      if(draw(ca,1,&covP)==hB) hi=mid; else lo=mid; }
-    int minset=lo+1; g_lo=0; g_hi=minset;
-    for(int d=0;d<minset && minset<=256;d++){ skip[d]=1; if(draw(ca,1,&covP)!=hB) skip[d]=0; }
-    int kept=0,idx[8],nk=0; for(int d=0;d<minset;d++) if(!skip[d]){ kept++; if(nk<8) idx[nk++]=d; }
+    /* Leave-one-out to fixpoint over the FULL candidate set.
+       The previous code bisected first, but g_lo/g_hi select a WINDOW [lo,mid),
+       not a prefix, so a failed probe discarded [0,lo) untested -- only correct
+       when exactly one byte is causal. And the greedy pass was gated on
+       minset<=256, a loop-invariant condition, so for large sets it ran zero
+       times and reported the full set as if it were minimal. */
+    g_lo=0; g_hi=nsite;
+    int changed=1, passes=0;
+    while(changed && passes<8){ changed=0; passes++;
+      for(int d=0; d<nsite; d++){
+        if(skip[d]) continue;
+        skip[d]=1;
+        if(draw(ca,1,&covP)!=hB) skip[d]=0; else changed=1; } }
+    int kept=0,idx[16],nk=0; for(int d=0;d<nsite;d++) if(!skip[d]){ kept++; if(nk<16) idx[nk++]=d; }
     uint64_t hM=draw(ca,1,&covP); g_lo=0; g_hi=1<<30; memset(skip,0,sizeof skip);
     if(hM==hB && kept<=8){ pass++;
       printf("%-24s %-7d %8.1f%%  CAUSAL: %d-byte @",F[i].name,nsite,covP,kept);

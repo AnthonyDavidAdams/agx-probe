@@ -2,14 +2,14 @@ RENDER-PASS STATE, VALIDATED BY CONTROL (pixel-exact)
 =================================================================
 FIELD                    CANDS   cov(A->B) VERDICT
 -----------------------------------------------------------------
-clearDepth               6       -         replay not B
-clearStencil             3       -         replay not B
-stencilReferenceValue    4            0.0%  CAUSAL: 1-byte @ reg25:0x1338
-renderTargetWidth        791     -         reproduced by 791 bytes - not isolated
-color.loadAction         319     -         replay not B
-color.storeAction        191         43.9%  CAUSAL: 1-byte @ reg10:0xc9c
+clearDepth               6            0.0%  CAUSAL: 1-byte @ reg10:0xecf
+clearStencil             1500    -         replay not B
+stencilReferenceValue    4            0.0%  CAUSAL: 1-byte @ reg26:0x1338
+renderTargetWidth        791         27.8%  CAUSAL: 4-byte @ reg26:0x136a reg26:0x136b reg26:0x136e reg26:0x136f
+color.loadAction         317     -         reproduced by 237 bytes - not isolated
+color.storeAction        -       -         no visible effect
 depth.loadAction         -       -         no visible effect
 stencil.loadAction       -       -         no visible effect
 visibilityResultMode     -       -         no visible effect
 -----------------------------------------------------------------
-2 of 6 testable render-pass fields isolated causally
+3 of 5 testable render-pass fields isolated causally
