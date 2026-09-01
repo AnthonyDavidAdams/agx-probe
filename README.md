@@ -359,6 +359,32 @@ produced plausible garbage first:
   kernels' code sits at different offsets in their frames. Single-kernel
   bit-flipping avoids the problem entirely.
 
+## A structural limit: observable is not the same as controllable
+
+`validate_pass` proves `stencilReferenceValue` at reg26 `0x1338` and fails on
+most other render-pass fields — and the failures are informative rather than
+noise. The probes **capture after** commit (needed, or `clearDepth` reads a
+submission stale) but **patch before** it. For any state the driver writes
+*during* commit, its own write lands moments after the patch and clobbers it.
+
+Measuring patch survival makes this explicit:
+
+```
+clearDepth              2/6 bytes survived     driver overwrote 4
+clearStencil            2/3 survived           overwrote 1
+stencilReferenceValue   4/4 survived           -> CAUSAL
+renderTargetWidth     791/791 survived         survived, but too diffuse to isolate
+color.loadAction      297/319 survived         22 clobbered
+```
+
+The only field whose patch fully survived is the only one that validated. So
+these are not mis-located fields; they sit in a window this instrument cannot
+write to. Controlling them needs a hook between the driver's write and the GPU's
+read — inside commit, after the state lands, before the doorbell.
+
+Reporting survival alongside every failure is what separates "wrong field" from
+"patch never took", and that distinction was invisible until it was measured.
+
 ## Firmware ring
 
 `ring_probe` looks one layer below everything else: the coprocessor the GPU is

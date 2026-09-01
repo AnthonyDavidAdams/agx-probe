@@ -1,0 +1,8 @@
+[vp] 34 regions
+
+      [patch survival: 2/6 bytes still ours after commit]
+      [patch survival: 2/3 bytes still ours after commit]
+      [patch survival: 4/4 bytes still ours after commit]
+      [patch survival: 791/791 bytes still ours after commit]
+      [patch survival: 297/319 bytes still ours after commit]
+      [patch survival: 180/191 bytes still ours after commit]
