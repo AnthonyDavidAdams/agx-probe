@@ -57,7 +57,30 @@ clearColor r/g/b/a     CAUSAL @ reg17 0x0e0 / e4 / e8 / ec
 19 of 19 testable fields isolated causally
 ```
 
-**The packed stencil word is now causally confirmed, bit for bit.** Its layout
+### Sampler descriptor, fully proven
+
+```
+reg21 +0x662   magFilter
+      +0x663   minFilter + mipFilter + sAddressMode   (three fields, one byte)
+      +0x664   tAddressMode
+      +0x667   borderColor
+      +0x684   compareFunction   permuted 0->7 1->2 2->4 3->0 4->3 5->5 6->1
+
+7 of 7 testable sampler fields isolated causally
+```
+
+Sampler encodings are permuted, so value-pattern matching cannot find them at
+all; `validate_sampler` goes straight to raw replay plus greedy reduction, which
+is encoding-agnostic. The permuted `compareFunction` was previously only
+bijection evidence — weak — and is now causal.
+
+Every initial failure here was a **scene** problem rather than a hardware one:
+`borderColor` does nothing unless addressing is ClampToBorderColor, `magFilter`
+does nothing unless the texture is magnified (the base UVs minified), and
+`minFilter` merely hit the candidate cap. Fixing the scene took all three from
+"no visible effect" to isolated.
+
+**The packed stencil word is also causally confirmed, bit for bit.** Its layout
 was decoded by correlation early on; patching proves each operation
 independently at exactly the predicted position — `stencilPassOp` at bit 0,
 `depthFailOp` at bit 3, `stencilFailOp` at bit 6.
