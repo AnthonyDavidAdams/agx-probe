@@ -1,0 +1,35 @@
+[pass] 38 regions, 18 axes, 72 runs
+[pass] noise mask 111 / 3997696 bytes
+
+
+[pass] 17 of 18 axes located
+FIELD                    REG   OFFSET    ENCODING
+---------------------------------------------------------------
+color.loadAction         4     0x002e01  2-bit field at bit 7
+                         4     0x002e05  2-bit field at bit 7
+color.storeAction        4     0x002e00  2-bit @bit 7, permuted: 0->0 1->2 2->1
+                         4     0x002e01  2-bit @bit 2, permuted: 0->1 1->2 2->3
+depth.loadAction         4     0x002e00  2-bit @bit 6, permuted: 0->0 1->2 2->3
+                         4     0x002e01  2-bit @bit 5, permuted: 0->1 1->0 2->3
+depth.storeAction        4     0x002e00  2-bit @bit 3, permuted: 0->1 1->2 2->3
+                         4     0x002e01  2-bit @bit 0, permuted: 0->2 1->1 2->0
+stencil.loadAction       4     0x002e00  2-bit @bit 1, permuted: 0->1 1->0 2->2
+                         4     0x002e01  2-bit @bit 4, permuted: 0->1 1->3 2->0
+stencil.storeAction      4     0x002e00  2-bit @bit 2, permuted: 0->1 1->0 2->2
+                         4     0x002e01  2-bit field at bit 14
+clearColor.red           16    0x0000e0  float32 LE
+clearColor.green         16    0x0000e4  float32 LE
+clearColor.blue          16    0x0000e8  float32 LE
+clearColor.alpha         16    0x0000ec  float32 LE
+clearDepth               10    0x0005e4  float32 LE
+clearStencil             10    0x0005e8  byte 0 of LE int
+renderTargetWidth        10    0x0004b4  byte 0 of LE int
+                         10    0x0007dc  byte 0 of LE int
+renderTargetHeight       10    0x0004b8  byte 0 of LE int
+                         10    0x0007e0  byte 0 of LE int
+visibilityResultMode     4     0x002e00  2-bit field at bit 13
+                         4     0x002e01  2-bit field at bit 5
+threadgroup.x            -     -         not located
+threadgroup.y            29    0x000020  byte 0 of LE int
+dispatch.gridX           15    0x000118  byte 0 of LE int
+                         29    0x000010  byte 0 of LE int

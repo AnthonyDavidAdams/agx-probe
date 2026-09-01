@@ -103,6 +103,38 @@ static const char *agx_classify(int r,uint64_t o,int s,AxisMeta *ax,char *buf,si
     if(dv<n) continue;
     snprintf(buf,bs,"%d-bit field at bit %d",w,sh); return buf;
   }
+  /* Identity failed. A hardware enum need not use Metal's numbering, so accept
+     a consistent BIJECTION: n distinct extracted values, same input always
+     giving the same output. Requiring all n distinct keeps this selective. */
+  for(int w2=1; w2<=4; w2++){
+    if((1<<w2) < n) continue;
+    int msk2=(1<<w2)-1;
+    for(int sh=0; sh+w2<=16; sh++){
+      if(o+2>r_size[r] && sh+w2>8) continue;
+      int seen[16]; for(int t=0;t<16;t++) seen[t]=-1;
+      int ok=1, dv=0;
+      for(int j=0;j<n && ok;j++){
+        uint16_t wd=snap[s+j][r][o];
+        if(o+1<r_size[r]) wd |= (uint16_t)snap[s+j][r][o+1]<<8;
+        int y=(wd>>sh)&msk2;
+        for(int t=0;t<j;t++){
+          uint16_t wt=snap[s+t][r][o];
+          if(o+1<r_size[r]) wt |= (uint16_t)snap[s+t][r][o+1]<<8;
+          int yt=(wt>>sh)&msk2;
+          if((yt==y) != ((int)ax->v[t]==(int)ax->v[j])) { ok=0; break; }
+        }
+        if(ok && seen[y]<0){ seen[y]=j; dv++; }
+      }
+      if(!ok || dv!=n) continue;
+      int u=snprintf(buf,bs,"%d-bit @bit %d, permuted:",w2,sh);
+      for(int j=0;j<n && u<(int)bs-8;j++){
+        uint16_t wd=snap[s+j][r][o];
+        if(o+1<r_size[r]) wd |= (uint16_t)snap[s+j][r][o+1]<<8;
+        u+=snprintf(buf+u,bs-u," %d->%d",(int)ax->v[j],(wd>>sh)&msk2);
+      }
+      return buf;
+    }
+  }
   return NULL;
 }
 #endif

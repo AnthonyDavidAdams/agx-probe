@@ -1,0 +1,25 @@
+[samp] 34 regions, 12 axes
+[samp] noise mask 67
+
+
+[samp] 6 of 12 axes located
+FIELD                      REG   OFFSET    ENCODING
+-----------------------------------------------------------------
+sampler.minFilter          2     0x000043  1-bit field at bit 1
+                           8     0x00021c  1-bit field at bit 3
+sampler.magFilter          2     0x000042  1-bit field at bit 7
+                           8     0x000005  1-bit field at bit 0
+sampler.mipFilter          2     0x000043  2-bit field at bit 3
+                           22    0x000663  2-bit field at bit 3
+sampler.sAddressMode       -     -         not located
+sampler.tAddressMode       -     -         not located
+sampler.rAddressMode       -     -         not located
+sampler.normalizedCoords   2     0x000043  1-bit field at bit 3
+                           2     0x000044  1-bit @bit 6, permuted: 0->1 1->0
+sampler.compareFunction    2     0x000064  3-bit @bit 7, permuted: 0->7 1->2 2->4 3->0 4->3 5->5 6->1
+                           22    0x000684  3-bit @bit 7, permuted: 0->7 1->2 2->4 3->0 4->3 5->5 6->1
+sampler.maxAnisotropy      -     -         not located
+sampler.borderColor        2     0x000047  2-bit field at bit 5
+                           22    0x000667  2-bit field at bit 5
+sampler.lodMinClamp        -     -         not located
+sampler.lodMaxClamp        -     -         not located

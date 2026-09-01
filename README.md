@@ -158,6 +158,43 @@ fragment shader. This matches how Mesa's Asahi driver handles blending, and is
 the clearest example of the method correctly reporting that a thing you expected
 to find does not exist.
 
+## Render pass, dispatch and sampler state
+
+`pass_probe` (17 of 18 axes) and `sampler_probe` (6 of 12) cover the axes no
+other probe reaches. Two more descriptor blocks fall out:
+
+```
+clearColor RGBA      reg16 +0x0e0 .. +0x0ec     float32 x4
+clearDepth/Stencil   reg10 +0x5e4 / +0x5e8      float32, then uint8
+renderTarget W/H     reg10 +0x4b4 / +0x4b8      LE int, mirrored at +0x7dc
+sampler descriptor   reg2  +0x040 .. +0x047     packed
+```
+
+`reg2 +0x2e00..0x2e01` is a packed control word carrying load/store actions and
+visibility mode at different bit positions, the same shape as the stencil word.
+
+### Permuted enum encodings
+
+The classifier originally required extracted bits to *equal* Metal's enum value,
+which made any renumbered field invisible. Accepting a consistent **bijection**
+found several, most convincingly:
+
+```
+sampler.compareFunction   reg2 +0x064 bit7, 3-bit
+    Metal:  0    1    2    3    4    5    6
+    HW:     7    2    4    0    3    5    1
+```
+
+Corroborated at two independent sites with an identical permutation. Note it
+contradicts depth compare, which is identity — AGX numbers sampler comparisons
+differently from depth comparisons.
+
+Caveat: bijection matching is far less selective than identity. A three-value
+enum in a two-bit field matches by chance easily, so the load/store action
+permutations below should be treated as candidates until corroborated. The
+seven-value compare function across two sites is strong; the three-value ones
+are not.
+
 ## Pipeline-state axes: state or compiled code?
 
 Thirteen axes came back `not located` from `state_probe` because they live in

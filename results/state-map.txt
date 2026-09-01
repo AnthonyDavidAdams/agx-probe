@@ -3,22 +3,22 @@ FIELD                      REG   OFFSET    ENCODING
 depthCompareFunction       26    0x00093b  3-bit field at bit 0
                            26    0x000943  3-bit field at bit 0
 depthWriteEnabled          6     0x000484  1-bit field at bit 3
-                           6     0x000488  1-bit field at bit 4
-                           6     0x000489  1-bit field at bit 3
-                                           (+66 more sites)
+                           6     0x000489  1-bit field at bit 0
+                           6     0x00048a  1-bit field at bit 1
+                                           (+65 more sites)
 cullMode                   26    0x000998  2-bit field at bit 0
 frontFacingWinding         6     0x00063c  1-bit field at bit 3
-                           6     0x000641  1-bit field at bit 1
-                           6     0x000642  1-bit field at bit 0
-                                           (+66 more sites)
+                           6     0x000640  1-bit field at bit 4
+                           6     0x000641  1-bit field at bit 0
+                                           (+65 more sites)
 triangleFillMode           6     0x000005  1-bit field at bit 0
                            6     0x000009  1-bit field at bit 0
                            6     0x0006ec  1-bit field at bit 3
                                            (+62 more sites)
 depthClipMode              6     0x00079c  1-bit field at bit 3
-                           6     0x0007a0  1-bit field at bit 7
-                           6     0x0007a1  1-bit field at bit 4
-                                           (+67 more sites)
+                           6     0x0007a0  1-bit field at bit 5
+                           6     0x0007a1  1-bit field at bit 1
+                                           (+65 more sites)
 stencilCompare.front       26    0x00093f  3-bit field at bit 1
                            26    0x000947  3-bit field at bit 1
 stencilFailOp.front        26    0x00093e  3-bit field at bit 6
@@ -33,45 +33,50 @@ stencilWriteMask           26    0x00093c  byte 0 of LE int
                            26    0x000944  byte 0 of LE int
 stencilReferenceValue      26    0x000938  byte 0 of LE int
                            26    0x000940  byte 0 of LE int
-scissor.x                  31    0x000012  byte 0 of LE int
-scissor.y                  31    0x000016  byte 0 of LE int
+scissor.x                  30    0x000012  byte 0 of LE int
+scissor.y                  30    0x000016  byte 0 of LE int
 scissor.width              -     -         not located
 scissor.height             -     -         not located
-depthBias                  32    0x000000  float32 LE
-depthBias.slopeScale       32    0x000004  float32 LE
-depthBias.clamp            32    0x000008  float32 LE
+depthBias                  31    0x000000  float32 LE
+depthBias.slopeScale       31    0x000004  float32 LE
+depthBias.clamp            31    0x000008  float32 LE
 blendColor.red             21    0x000680  float32 LE
 blendColor.green           21    0x000684  float32 LE
 blendColor.blue            21    0x000688  float32 LE
 blendColor.alpha           21    0x00068c  float32 LE
 sampler.minFilter          2     0x000643  1-bit field at bit 1
-                           6     0x00003c  1-bit field at bit 4
-                           6     0x00003d  1-bit field at bit 0
-                                           (+41 more sites)
+                           6     0x00003c  1-bit field at bit 7
+                           6     0x00003d  1-bit field at bit 9
+                                           (+54 more sites)
 sampler.magFilter          2     0x000642  1-bit field at bit 7
                            6     0x000005  1-bit field at bit 0
                            6     0x000009  1-bit field at bit 0
-                                           (+47 more sites)
+                                           (+57 more sites)
 sampler.mipFilter          2     0x000643  2-bit field at bit 3
                            21    0x000643  2-bit field at bit 3
 sampler.sAddressMode       -     -         not located
 sampler.tAddressMode       -     -         not located
 sampler.rAddressMode       -     -         not located
-sampler.normalizedCoords   6     0x000005  1-bit field at bit 0
+sampler.normalizedCoords   2     0x000644  1-bit @bit 6, permuted: 0->1 1->0
+                           6     0x000005  1-bit field at bit 0
                            6     0x000009  1-bit field at bit 0
-                           6     0x0008d4  1-bit field at bit 14
-                                           (+48 more sites)
-sampler.compareFunction    -     -         not located
+                                           (+56 more sites)
+sampler.compareFunction    2     0x000644  3-bit @bit 7, permuted: 0->7 1->2 2->4 3->0 4->3 5->5 6->1
+                           21    0x000644  3-bit @bit 7, permuted: 0->7 1->2 2->4 3->0 4->3 5->5 6->1
 sampler.maxAnisotropy      -     -         not located
 sampler.borderColor        2     0x000647  2-bit field at bit 5
                            21    0x000647  2-bit field at bit 5
 sampler.lodMinClamp        -     -         not located
 sampler.lodMaxClamp        -     -         not located
-vertex.format              -     -         not located
-vertex.stepFunction        6     0x000005  2-bit field at bit 1
-                           6     0x000009  2-bit field at bit 1
-                           6     0x0013d4  2-bit field at bit 7
-                                           (+43 more sites)
+vertex.format              13    0x000020  3-bit @bit 7, permuted: 28->6 29->3 30->7 31->0 20->1 21->2
+                           18    0x000046  3-bit @bit 9, permuted: 28->6 29->4 30->7 31->0 20->2 21->3
+                           18    0x000047  3-bit @bit 1, permuted: 28->6 29->4 30->7 31->0 20->2 21->3
+vertex.stepFunction        1     0x00bc00  1-bit @bit 7, permuted: 1->1 2->0
+                           1     0x00bc01  1-bit @bit 1, permuted: 1->1 2->0
+                           1     0x00bc40  1-bit @bit 0, permuted: 1->0 2->1
+                                           (+336 more sites)
 vertex.attrOffset          -     -         not located
 vertex.layoutStride        -     -         not located
-colorWriteMask             -     -         not located
+colorWriteMask             26    0x000908  3-bit @bit 8, permuted: 0->0 1->7 3->1 7->3 15->4
+                           26    0x000909  3-bit @bit 0, permuted: 0->0 1->7 3->1 7->3 15->4
+                           26    0x00095c  4-bit @bit 0, permuted: 0->0 1->8 3->12 7->14 15->15
