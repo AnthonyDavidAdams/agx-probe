@@ -1,0 +1,6 @@
+[state] 34 regions / 3850240 bytes
+[state] 197 runs, 41 axes
+[state] noise mask 70 / 3850240 bytes
+
+
+[state] 28 axes located of 41; 54 primary locations

@@ -1,0 +1,20 @@
+[isa] 3 regions / 147456 bytes
+[isa] arena noise mask 0 bytes
+
+[isa] add     reg1  0x0003c7  span   48 bytes  (26 changed)
+[isa] sub     reg1  0x000401  span  193 bytes  (69 changed)
+[isa] mul     reg1  0x0004c0  span  194 bytes  (71 changed)
+[isa] div     reg1  0x000580  span  258 bytes  (78 changed)
+[isa] min     reg1  0x000680  span  194 bytes  (71 changed)
+[isa] max     reg1  0x000740  span  194 bytes  (70 changed)
+[isa] fma     reg1  0x000801  span  193 bytes  (71 changed)
+[isa] sqrt    reg1  0x0008c1  span  257 bytes  (78 changed)
+[isa] rsqrt   reg1  0x0009c1  span  257 bytes  (74 changed)
+[isa] floor   reg1  0x000ac1  span  257 bytes  (74 changed)
+[isa] ceil    reg1  0x000bc1  span  257 bytes  (74 changed)
+[isa] abs     reg1  0x000cc0  span  194 bytes  (73 changed)
+[isa] exp2    reg1  0x000d80  span  258 bytes  (76 changed)
+[isa] log2    reg1  0x000e80  span  258 bytes  (76 changed)
+[isa] sin     reg1  0x000f81  span  321 bytes  (156 changed)
+
+[isa] 15 variants captured

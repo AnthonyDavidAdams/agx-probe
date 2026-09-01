@@ -1,3 +1,7 @@
 build/
 *.o
 .DS_Store
+ane/models*/
+ane/deep/
+ane/thresh/
+ane/ane_probe

@@ -32,10 +32,13 @@ API=Never,  PATCHED to Always      2           41.1%  RESTORED
 The image follows the patched byte, not the API call, in **both directions**.
 The recovered field drives the hardware.
 
+`cullMode` is validated the same way (`make validate` runs both): patching
+reg27 `0x998` culls or restores the triangle on command.
+
 This is the difference between a map and a driver: not "this byte correlates
-with depth testing" but "writing this byte controls depth testing." Only
-`depthCompareFunction` has been validated this way so far; the rest of the map
-remains correlational until each field gets the same treatment.
+with depth testing" but "writing this byte controls depth testing." Two fields
+are causally validated so far; the rest of the map remains correlational until
+each gets the same treatment.
 
 Run it with `make validate`.
 
@@ -123,6 +126,14 @@ destination or the blend constant. Apple's compiler lowers blending into the
 fragment shader. This matches how Mesa's Asahi driver handles blending, and is
 the clearest example of the method correctly reporting that a thing you expected
 to find does not exist.
+
+## Neural Engine
+
+The same method applied to the ANE (`h16g`, 16 cores) lives in [`ane/`](ane/):
+the Neural Engine's full 44-entry layer vocabulary extracted from
+`ANECompiler.framework`, and the finding that **Core ML's ANE dispatch is a
+whole-graph, all-or-nothing decision gated on total work** — which is why
+single-op microbenchmarks conclude the ANE supports nothing at all.
 
 ## How it works
 
