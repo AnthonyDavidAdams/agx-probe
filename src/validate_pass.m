@@ -151,13 +151,15 @@ int main(void){ @autoreleasepool {
   MTLTextureDescriptor *dd=[MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float_Stencil8 width:64 height:64 mipmapped:NO];
   dd.usage=MTLTextureUsageRenderTarget; dd.storageMode=MTLStorageModePrivate; ds=[dev newTextureWithDescriptor:dd];
   q=[dev newCommandQueue]; visBuf=[dev newBufferWithLength:256 options:MTLResourceStorageModeShared];
-  Class k=objc_getClass("AGXG16GFamilyCommandBuffer");
-  Method m=class_getInstanceMethod(k,@selector(commit));
-  real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
 
   g_hold = [(id)[q commandBuffer] respondsToSelector:@selector(commitAndHold)]
         && [(id)q respondsToSelector:@selector(submitCommandBuffer:)];
   fprintf(stderr,"[vp] hold-mode %s\n", g_hold?"ENABLED (capture==patch point)":"unavailable, falling back to swizzle");
+  if(!g_hold){                       /* fallback only: swizzle conflicts with hold */
+    Class k=objc_getClass("AGXG16GFamilyCommandBuffer");
+    Method m=class_getInstanceMethod(k,@selector(commit));
+    real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
+  }
   Cfg base={0.9f, 3, 3, 64, 2,1,2,2, 0};
   for(int i=0;i<4;i++) draw(base,0,NULL);
   agx_locate(); agx_alloc(6);
@@ -166,8 +168,10 @@ int main(void){ @autoreleasepool {
   printf("=================================================================\n");
   printf("%-24s %-7s %-9s %s\n","FIELD","CANDS","cov(A->B)","VERDICT");
   printf("-----------------------------------------------------------------\n");
-  int pass=0,tested=0;
+  int pass=0,tested=0,unstable=0;
   for(int i=0;i<NF;i++){
+   uint64_t repOff[2][16]; int repN[2]={0,0}; int repOK[2]={0,0}; double repCov[2]={0,0}; int repCand[2]={0,0};
+   for(int rep=0; rep<2; rep++){
     Cfg ca=base, cb2=base;
     if(F[i].isF){ *(float*)((char*)&ca+F[i].off)=(float)F[i].a; *(float*)((char*)&cb2+F[i].off)=(float)F[i].b; }
     else if(F[i].off>=offsetof(Cfg,cLoad)){ *(int*)((char*)&ca+F[i].off)=(int)F[i].a; *(int*)((char*)&cb2+F[i].off)=(int)F[i].b; }
@@ -181,8 +185,7 @@ int main(void){ @autoreleasepool {
     g_run=2; uint64_t hA2=draw(ca,0,NULL);
     g_run=3; uint64_t hB2=draw(cb2,0,NULL); g_run=-1;
     if(hA!=hA2 || hB!=hB2){ printf("%-24s %-7s %-9s NON-REPRODUCIBLE render\n",F[i].name,"-","-"); continue; }
-    if(hA==hB){ printf("%-24s %-7s %-9s no visible effect\n",F[i].name,"-","-"); continue; }
-    tested++;
+    if(hA==hB){ if(rep==0) printf("%-24s %-7s %-9s no visible effect\n",F[i].name,"-","-"); break; }
     nsite=0; memset(skip,0,sizeof skip);
     for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
       if(snap[0][r][o]!=snap[2][r][o]) continue;      /* A stable across its repeat */
@@ -210,10 +213,10 @@ int main(void){ @autoreleasepool {
         if(draw(ca,1,&covP)!=hB) skip[d]=0; else changed=1; } }
     int kept=0,idx[16],nk=0; for(int d=0;d<nsite;d++) if(!skip[d]){ kept++; if(nk<16) idx[nk++]=d; }
     uint64_t hM=draw(ca,1,&covP); g_lo=0; g_hi=1<<30; memset(skip,0,sizeof skip);
-    if(hM==hB && kept<=8){ pass++;
-      printf("%-24s %-7d %8.1f%%  CAUSAL: %d-byte @",F[i].name,nsite,covP,kept);
-      for(int t=0;t<nk;t++) printf(" reg%d:0x%llx",site[idx[t]].r,site[idx[t]].o);
-      printf("\n");
+    if(hM==hB && kept<=8){
+      repOK[rep]=1; repCov[rep]=covP; repCand[rep]=nsite; repN[rep]=nk;
+      for(int t=0;t<nk;t++) repOff[rep][t]=site[idx[t]].o;
+      continue;
     } else if(hM==hB){
       int nr=0,rs[8]; uint64_t lo9=~0ULL,hi9=0;
       for(int d=0;d<nsite;d++) if(!skip[d]){ if(site[d].o<lo9)lo9=site[d].o; if(site[d].o>hi9)hi9=site[d].o;
@@ -221,7 +224,27 @@ int main(void){ @autoreleasepool {
       printf("%-24s %-7d %8.1f%%  1-MINIMAL %d bytes across %d region(s), 0x%llx..0x%llx\n",
              F[i].name,nsite,covP,kept,nr,lo9,hi9);
     } else printf("%-24s %-7d %-9s reduction did not converge (%d)\n",F[i].name,nsite,"-",kept);
+    break;   /* a non-isolating outcome is reported once, not twice */
+   }
+   if(!repOK[0] && !repOK[1]) continue;
+   if(repOK[0] && repOK[1]){
+     int same = (repN[0]==repN[1]);
+     for(int t=0;t<repN[0] && same;t++){ int f2=0;
+       for(int u=0;u<repN[1];u++) if(repOff[0][t]==repOff[1][u]) f2=1;
+       if(!f2) same=0; }
+     if(same){ pass++; tested++;
+       printf("%-24s %-7d %8.1f%%  CAUSAL x2: %d-byte @",F[i].name,repCand[1],repCov[1],repN[1]);
+       for(int t=0;t<repN[1];t++) printf(" 0x%llx",repOff[1][t]);
+       printf("\n");
+     } else { unstable++; tested++;
+       printf("%-24s %-7s %-9s UNSTABLE: reps disagree (",F[i].name,"-","-");
+       for(int t=0;t<repN[0];t++) printf("0x%llx ",repOff[0][t]);
+       printf("vs ");
+       for(int t=0;t<repN[1];t++) printf("0x%llx ",repOff[1][t]);
+       printf(")\n"); }
+   } else { unstable++; tested++;
+     printf("%-24s %-7s %-9s UNSTABLE: isolated in only %d of 2 reps\n",F[i].name,"-","-",repOK[0]+repOK[1]); }
   }
   printf("-----------------------------------------------------------------\n");
-  printf("%d of %d testable render-pass fields isolated causally\n",pass,tested);
+  printf("%d fields isolated and REPRODUCED across 2 independent reps; %d unstable\n",pass,unstable);
 }; return 0; }

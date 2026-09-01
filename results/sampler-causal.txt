@@ -2,12 +2,12 @@ SAMPLER STATE, VALIDATED BY CONTROL (pixel-exact)
 =================================================================
 FIELD                      CANDS   cov(A->B) VERDICT
 -----------------------------------------------------------------
-sampler.minFilter          2           62.8%  CAUSAL: 1-byte @ reg21:0x663
-sampler.magFilter          2           62.8%  CAUSAL: 1-byte @ reg21:0x662
-sampler.mipFilter          2           62.2%  CAUSAL: 1-byte @ reg21:0x663
+sampler.minFilter          1500    -         replay of all 1500 bytes not B
+sampler.magFilter          1500    -         replay of all 1500 bytes not B
+sampler.mipFilter          93          62.2%  CAUSAL: 1-byte @ reg21:0x663
 sampler.sAddressMode       96          63.5%  CAUSAL: 1-byte @ reg21:0x663
 sampler.tAddressMode       19          63.5%  CAUSAL: 1-byte @ reg21:0x664
 sampler.compareFunction    3          100.0%  CAUSAL: 1-byte @ reg21:0x684
 sampler.borderColor        5           97.5%  CAUSAL: 1-byte @ reg21:0x667
 -----------------------------------------------------------------
-7 of 7 testable sampler fields isolated causally
+5 of 7 testable sampler fields isolated causally

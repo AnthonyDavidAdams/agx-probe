@@ -13,28 +13,33 @@ Tested on **Apple M4 (AGX G16G, `AGXMetalG16G_B0`), macOS 15.6**.
 
 ## Reproducibility, measured
 
-A causal result is worth nothing if the next run disagrees, so each validator was
-run twice and the field sets compared.
+A causal result is worth nothing if the next run disagrees. Every field below was
+determined at least twice, independently, and only fields whose **offsets match
+across determinations** are counted.
 
-| Probe | Fields | Reproducible? |
-|---|---|---|
-| `validate_all` | 19 | **Yes** — two runs, identical field set and identical offsets |
-| `validate_sampler` | 7 | not yet re-tested after the hold-mode change |
-| `validate_pass` | 4 | **No** — two consecutive runs of the same binary agreed on one field only |
+| Probe | Reproduced | Unstable | How verified |
+|---|---|---|---|
+| `validate_all` | **19** | 0 | two full runs: identical field set and identical offsets |
+| `validate_sampler` | **5** | 2 | two full runs: 5 fields at identical offsets |
+| `validate_pass` | **2** | 3 | two independent determinations *inside* one run |
 
-`validate_pass` is the outlier and the reason is in its scene: it renders **two
-passes** and deliberately carries colour-buffer content between them, because
-`loadAction` cannot be tested any other way. That history-dependence makes the
-whole measurement order-sensitive, and candidate counts swing by orders of
-magnitude between identical runs (`stencilReferenceValue` gave 4 candidates on
-one run and 1636 on the next). `validate_all` and `validate_sampler` clear to a
-fixed value every pass and are stable.
+**26 fields reproduce. Single-run counts had reached 28**, and the difference is
+entirely fields that isolated once and not again.
 
-**Treat the four `validate_pass` fields as provisional** — `clearDepth` at reg10
-`0xecf` reproduced in both runs and is the strongest of them; `clearStencil`
-`0xed0`, `stencilReferenceValue` `0x1338` and `renderTargetWidth` `0x136a` each
-appeared in one run only. Strengthening calibration to A,B,A,B and requiring both
-repeats to agree reduced spurious candidates but did not make the probe stable.
+`validate_pass` now re-derives each field twice from fresh calibration and prints
+`CAUSAL x2` only when both land on the same offsets. It is the least stable probe
+because its scene renders **two passes** and carries colour-buffer content between
+them — unavoidable, since `loadAction` cannot be tested without prior content.
+That history-dependence swings candidate counts by orders of magnitude between
+identical runs (`stencilReferenceValue` gave 4 candidates once and 1636 the next
+time). The two that survive, `clearDepth` at `0xecf` and `clearStencil` at
+`0xed0`, are adjacent — a clear-value pair.
+
+One trap worth recording: `commitAndHold` dispatches `commit` dynamically, so a
+swizzle on `commit` fires *inside* the hold path and re-enters. Hold mode and the
+swizzle are mutually exclusive; install the swizzle only as the fallback. Applying
+hold mode to `validate_sampler`, which never needed it, took that probe from 7
+fields to 0 — a fix applied where there was no problem.
 
 ## Validated by control, not correlation
 
