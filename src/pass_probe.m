@@ -89,6 +89,7 @@ int main(void){ @autoreleasepool {
   outBuf=[dev newBufferWithLength:1024 options:MTLResourceStorageModeShared];
   if(!agx_install("AGXG16GFamilyCommandBuffer")) return 1;
 
+  g_post=1;   /* some state lands during commit, not before it */
   Cfg base={2,0,2,1,2,1, 0,0,0,1, 0.5f, 0, 64,64, 0, 4,1, 32};
   for(int i=0;i<4;i++) render(base);
   agx_locate();

@@ -40,20 +40,39 @@ narrowed by bisection, so the tool names the *specific* causal byte.
 
 ```
 FIELD                  VERDICT
-depthCompareFunction   CAUSAL @ reg26 0x93b bit0
-cullMode               CAUSAL @ reg26 0x998 bit0
-frontFacingWinding     CAUSAL @ reg26 0x99a bit0
-stencilPassOp          CAUSAL @ reg26 0x93e bit0
-scissor.x / scissor.y  CAUSAL @ reg19 0x012 / 0x016
-blendColor r/g/b       CAUSAL @ reg21 0x620 / 624 / 628
-clearColor r/g/b/a     CAUSAL @ reg16 0x0e0 / e4 / e8 / ec
-triangleFillMode       CAUSAL: 1-byte  @ reg26 0x93a
-depthWriteEnabled      CAUSAL: 1-byte  @ reg26 0x93a      <- same byte
-stencilCompareFunc     CAUSAL: 2-byte  @ reg26 0x936 + 0x93f
-renderTargetWidth      CAUSAL: 4-byte  @ reg26 0x972,973,976,977
+depthCompareFunction   CAUSAL @ reg27 0x93b bit0
+cullMode               CAUSAL @ reg27 0x998 bit0
+frontFacingWinding     CAUSAL @ reg27 0x99a bit0
+stencilPassOp          CAUSAL @ reg27 0x93e bit0
+depthFailOp            CAUSAL @ reg27 0x93e bit3
+stencilFailOp          CAUSAL @ reg27 0x93e bit6
+triangleFillMode       CAUSAL: 1-byte @ reg27 0x93a
+depthWriteEnabled      CAUSAL: 1-byte @ reg27 0x93a      <- same byte
+stencilCompareFunc     CAUSAL: 2-byte @ reg27 0x936 + 0x93f
+renderTargetWidth      CAUSAL: 4-byte @ reg27 0x972,973,976,977
+scissor.x / scissor.y  CAUSAL @ reg20 0x012 / 0x016
+blendColor r/g/b       CAUSAL @ reg22 0x620 / 624 / 628
+clearColor r/g/b/a     CAUSAL @ reg17 0x0e0 / e4 / e8 / ec
 
-17 of 17 testable fields isolated causally
+19 of 19 testable fields isolated causally
 ```
+
+**The packed stencil word is now causally confirmed, bit for bit.** Its layout
+was decoded by correlation early on; patching proves each operation
+independently at exactly the predicted position — `stencilPassOp` at bit 0,
+`depthFailOp` at bit 3, `stencilFailOp` at bit 6.
+
+Two things had to be fixed before the last fields would move:
+
+- **Capture timing.** The commit hook fired on *entry*, so any state the driver
+  writes during commit was missed. `clearDepth` gave it away: its captured value
+  lagged the requested one by exactly one submission. Capturing after the
+  original commit returns (`g_post`) fixed it and also revealed `colorWriteMask`
+  and `vertex.format`, both previously classified code-only.
+- **Scene coverage.** `stencilFailOp` only fires when the stencil test *fails*
+  and `depthFailOp` only when stencil passes but depth fails. The base scene did
+  neither, so both read as "no visible effect" for hours. Per-field scene
+  overrides make each operation actually execute.
 
 Three of those were only reachable by a **raw-replay fallback with greedy subset
 reduction**: when pattern-matched candidates do nothing, replay every byte that

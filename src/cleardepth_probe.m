@@ -36,6 +36,7 @@ int main(void){ @autoreleasepool {
   dd.usage=MTLTextureUsageRenderTarget; dd.storageMode=MTLStorageModePrivate; ds=[dev newTextureWithDescriptor:dd];
   q=[dev newCommandQueue];
   if(!agx_install("AGXG16GFamilyCommandBuffer")) return 1;
+  g_post=1;   /* capture after commit completes */
   for(int i=0;i<4;i++) render(0.5);
   agx_locate(); agx_alloc(NV+3);
   g_run=0; render(0.5); g_run=1; render(0.5);

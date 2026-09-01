@@ -85,7 +85,14 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     struct { float ox,oy,z,tint; } a1={0.0f,0.0f,0.2f,0.1f};
     [en setVertexBytes:&a1 length:sizeof a1 atIndex:0];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
-    if(c.twoDraw){
+    if(c.twoDraw==3){
+      MTLDepthStencilDescriptor *x3=[MTLDepthStencilDescriptor new];
+      x3.depthCompareFunction=MTLCompareFunctionLess; x3.depthWriteEnabled=NO;
+      [en setDepthStencilState:[dev newDepthStencilStateWithDescriptor:x3]];
+      struct { float ox,oy,z,tint; } a3={0.0f,0.0f,0.5f,0.9f};
+      [en setVertexBytes:&a3 length:sizeof a3 atIndex:0];
+      [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+    } else if(c.twoDraw){
       /* second triangle tests what the first wrote to depth/stencil */
       MTLStencilDescriptor *s2=[MTLStencilDescriptor new];
       s2.stencilCompareFunction=(c.twoDraw==2)?MTLCompareFunctionEqual:MTLCompareFunctionAlways;
@@ -115,30 +122,30 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
   return h;
 }
 
-typedef struct { const char *name; size_t off; int mask; double a,b; int two; FKind kind; } Field;
+typedef struct { const char *name; size_t off; int mask; double a,b; int two; FKind kind; int ovScmp, ovDcmp; } Field;
 #define O(f) offsetof(Cfg,f)
 static Field F[]={
-  {"depthCompareFunction",O(dcmp),  0x07, 7,0, 0, K_BITS},
-  {"cullMode",            O(cull),  0x03, 2,1, 0, K_BITS},
-  {"frontFacingWinding",  O(wind),  0x01, 1,0, 0, K_BITS},
-  {"triangleFillMode",    O(fill),  0x01, 0,1, 0, K_BITS},
-  {"stencilCompareFunc",  O(scmp),  0x07, 7,0, 0, K_BITS},
-  {"stencilPassOp",       O(spass), 0x07, 2,0, 2, K_BITS},
-  {"depthWriteEnabled",   O(dwrite),0x01, 1,0, 1, K_BITS},
-  {"scissor.x",           O(sx),    0xFF, 0,28,0, K_BYTE},
-  {"stencilReferenceValue",O(sref), 0xFF, 1,2, 2, K_BYTE},
-  {"blendColor.red",      O(bcr),   0,  1.0,0.25,0, K_F32},
-  {"blendColor.green",    O(bcg),   0,  1.0,0.25,0, K_F32},
-  {"blendColor.blue",     O(bcb),   0,  1.0,0.50,0, K_F32},
-  {"clearColor.red",      O(clrR),  0,  0.0,0.75,0, K_F32},
-  {"clearColor.green",    O(clrG),  0,  0.0,0.50,0, K_F32},
-  {"clearColor.blue",     O(clrB),  0,  0.0,0.25,0, K_F32},
-  {"clearColor.alpha",    O(clrA),  0,  1.0,0.25,0, K_F32},
-  {"clearDepth",          O(clrD),  0,  0.5,0.05,0, K_F32},
-  {"scissor.y",           O(sy),    0xFF, 0,20, 0, K_BYTE},
-  {"renderTargetWidth",   O(rtW),   0xFF,64,40, 0, K_BYTE},
-  {"stencilFailOp",       O(sfail), 0x07, 2,0, 2, K_BITS},
-  {"depthFailOp",         O(dfail), 0x07, 2,0, 1, K_BITS},
+  {"depthCompareFunction",O(dcmp),  0x07, 7,0, 0, K_BITS, -1, -1},
+  {"cullMode",            O(cull),  0x03, 2,1, 0, K_BITS, -1, -1},
+  {"frontFacingWinding",  O(wind),  0x01, 1,0, 0, K_BITS, -1, -1},
+  {"triangleFillMode",    O(fill),  0x01, 0,1, 0, K_BITS, -1, -1},
+  {"stencilCompareFunc",  O(scmp),  0x07, 7,0, 0, K_BITS, -1, -1},
+  {"stencilPassOp",       O(spass), 0x07, 2,0, 2, K_BITS, -1, -1},
+  {"depthWriteEnabled",   O(dwrite),0x01, 1,0, 1, K_BITS, -1, -1},
+  {"scissor.x",           O(sx),    0xFF, 0,28,0, K_BYTE, -1, -1},
+  {"stencilReferenceValue",O(sref), 0xFF, 1,2, 2, K_BYTE, -1, -1},
+  {"blendColor.red",      O(bcr),   0,  1.0,0.25,0, K_F32, -1, -1},
+  {"blendColor.green",    O(bcg),   0,  1.0,0.25,0, K_F32, -1, -1},
+  {"blendColor.blue",     O(bcb),   0,  1.0,0.50,0, K_F32, -1, -1},
+  {"clearColor.red",      O(clrR),  0,  0.0,0.75,0, K_F32, -1, -1},
+  {"clearColor.green",    O(clrG),  0,  0.0,0.50,0, K_F32, -1, -1},
+  {"clearColor.blue",     O(clrB),  0,  0.0,0.25,0, K_F32, -1, -1},
+  {"clearColor.alpha",    O(clrA),  0,  1.0,0.25,0, K_F32, -1, -1},
+  {"scissor.y",           O(sy),    0xFF, 0,20, 0, K_BYTE, -1, -1},
+  {"renderTargetWidth",   O(rtW),   0xFF,64,40, 0, K_BYTE, -1, -1},
+  {"clearDepth",          O(clrD),  0,  0.9,0.05,3, K_F32, -1, -1},
+  {"stencilFailOp",       O(sfail), 0x07, 2,0, 2, K_BITS, 0, -1},   /* stencil Never -> always fails */
+  {"depthFailOp",         O(dfail), 0x07, 2,0, 2, K_BITS, 7,  0},   /* stencil Always, depth Never */
 };
 #define NF (int)(sizeof(F)/sizeof(F[0]))
 
@@ -163,6 +170,7 @@ int main(void){ @autoreleasepool {
   Method m=class_getInstanceMethod(k,@selector(commit));
   real_commit=method_getImplementation(m); method_setImplementation(m,(IMP)hook);
 
+  g_post=1;   /* some state lands during commit, not before it */
   Cfg base={1,1,2,1,0, 7,0,0,0, 1,0,0, 0, 1.0f,1.0f,1.0f, 0.0f,0.0f,0.0f,1.0f,0.5f, 64};
   for(int i=0;i<4;i++) draw(base,-1,0,NULL);
   agx_locate(); agx_alloc(4);
@@ -177,6 +185,8 @@ int main(void){ @autoreleasepool {
     fprintf(stderr,"[val] field %d/%d %s\n",i+1,NF,F[i].name);
     Cfg ca=base, cb2=base;
     ca.twoDraw=F[i].two; cb2.twoDraw=F[i].two;
+    if(F[i].ovScmp>=0){ ca.scmp=F[i].ovScmp; cb2.scmp=F[i].ovScmp; }
+    if(F[i].ovDcmp>=0){ ca.dcmp=F[i].ovDcmp; cb2.dcmp=F[i].ovDcmp; }
     if(F[i].kind==K_F32){ *(float*)((char*)&ca +F[i].off)=(float)F[i].a;
                           *(float*)((char*)&cb2+F[i].off)=(float)F[i].b; }
     else if(F[i].kind==K_BYTE){ *(uint32_t*)((char*)&ca +F[i].off)=(uint32_t)F[i].a;

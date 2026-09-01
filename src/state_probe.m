@@ -155,6 +155,7 @@ int main(void){ @autoreleasepool {
   q=[dev newCommandQueue];
   if(!agx_install("AGXG16GFamilyCommandBuffer")) return 1;
 
+  g_post=1;   /* some state lands during commit, not before it */
   Cfg base={1,1,0,0,0,0, 1,0,0,0, 0xFF,0xFF,0, 4,4,32,32,
             1.0f,1.0f,0.5f, 0.5f,0.5f,0.5f,1.0f,
             0,0,0, 0,0,0, 1,0,1,0, 0.0f,4.0f,

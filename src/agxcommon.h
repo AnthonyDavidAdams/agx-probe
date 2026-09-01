@@ -35,9 +35,14 @@ static void agx_snapshot(int run){
   for(int r=0;r<r_n;r++){ mach_vm_size_t g=0;
     mach_vm_read_overwrite(mach_task_self(),r_addr[r],r_size[r],(mach_vm_address_t)snap[run][r],&g); }
 }
+/* Some state is written by the driver DURING commit, not before it: capturing
+   only on entry shows the previous submission's value (clearDepth lags by one).
+   g_post selects capture after the original commit returns. */
+static int g_post=0;
 static void agx_commit_hook(id self, SEL _cmd){
-  if(g_run>=0&&g_run<MAXRUN) agx_snapshot(g_run);
+  if(!g_post && g_run>=0 && g_run<MAXRUN) agx_snapshot(g_run);
   ((void(*)(id,SEL))orig_commit)(self,_cmd);
+  if(g_post && g_run>=0 && g_run<MAXRUN) agx_snapshot(g_run);
 }
 /* Metal encoding is lazy: nothing reaches GPU memory until commit, so we
    capture inside a swizzle on the driver's own commit. */
