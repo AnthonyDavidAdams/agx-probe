@@ -1,0 +1,29 @@
+bit-flip sweep
+   +0x050 : add=06 sub=00
+   +0x052 : add=06 sub=00
+   +0x054 : add=06 sub=00
+
+live-vs-captured mismatch in add slot: 1 of 256 bytes  (slot was recycled -- patches would be meaningless)
+
+BIT-FLIP SWEEP on the live ADD kernel (a=7 b=3, add=10 sub=4)
+Single-kernel experiment: no cross-kernel alignment needed.
+==================================================================
+  +0x080 bit0 : 1c->1d  => 3.000
+  +0x080 bit1 : 1c->1e  => 0.000
+  +0x081 bit3 : a0->a8  => 0.000
+  +0x081 bit7 : a0->20  => 0.000
+  +0x082 bit0 : 10->11  => 3.000
+  +0x082 bit1 : 10->12  => 0.000
+  +0x084 bit0 : 67->66  => 3.000
+  +0x084 bit1 : 67->65  => 3.000
+  +0x084 bit2 : 67->63  => 3.000
+  +0x084 bit3 : 67->6f  => 3.000
+  +0x084 bit4 : 67->77  => 3.000
+  +0x084 bit5 : 67->47  => 0.000
+  +0x084 bit6 : 67->27  => 3.000
+  +0x084 bit7 : 67->e7  => 3.000
+------------------------------------------------------------------
+121 of 256 bytes are semantically live (a bit flip changes the result)
+0 flips turned ADD into exactly SUB
+
+[exited with code 0]

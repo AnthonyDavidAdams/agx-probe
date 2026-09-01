@@ -202,6 +202,44 @@ decay logarithmically — a minifloat encoding rather than a constant pool index
 are identical for `a-b` and `a-c` because the register allocator reuses registers
 regardless of which buffer is read.
 
+## Executing patched shader code
+
+`isa_exec_probe` is the ISA analogue of `write_probe`: patch the shader's live
+code in the arena and run it with known inputs, so the oracle is **numeric**
+rather than visual.
+
+```
+BIT-FLIP SWEEP on the live ADD kernel   (a=7 b=3; add=10, sub=4)
+  +0x080 bit0 : 1c->1d  => 3.000
+  +0x082 bit0 : 10->11  => 3.000
+  +0x084 bit5 : 67->47  => 0.000
+  ...
+  121 of 256 bytes are semantically live (a bit flip changes the result)
+  0 flips turned ADD into exactly SUB
+```
+
+So the executable footprint is mappable — 121 live bytes out of a 256-byte
+slot — but `add` and `sub` do not differ by a reachable single bit. Flips
+degenerate the instruction (result becomes `b`, or zero) rather than converting
+it. Locating the opcode field needs more than bit-flipping.
+
+Four things had to be right before any of this worked, each of which silently
+produced plausible garbage first:
+
+- **Slots are 256-byte pitched.** Measuring slot length by diff extent
+  understates it whenever the previous build wrote similar code into the same
+  recycled slot (`add` read as 51 bytes instead of 256).
+- **Metal caches compiled shaders on disk across process runs.** A source seen
+  in an earlier session is served from cache and barely touches the arena. The
+  nonce must go in the function *name*: putting it in the arithmetic changes
+  codegen (`a*K+b` fuses to FMA, `a*K-b` does not).
+- **Slots get recycled.** A kernel built before other pipelines is no longer
+  where it was captured. Build the kernel you intend to patch last, and verify
+  live-vs-captured bytes before trusting any patch.
+- **Cross-kernel byte comparison needs content alignment**, and even then two
+  kernels' code sits at different offsets in their frames. Single-kernel
+  bit-flipping avoids the problem entirely.
+
 ## Firmware ring
 
 `ring_probe` looks one layer below everything else: the coprocessor the GPU is
