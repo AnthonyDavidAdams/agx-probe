@@ -40,12 +40,20 @@ narrowed by bisection, so the tool names the *specific* causal byte.
 
 ```
 FIELD                  SITES  cov(A)  cov(B)  cov(A->B)  VERDICT
-depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0  (3 probes)
-cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0  (2 probes)
-frontFacingWinding     88     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0  (9 probes)
+depthCompareFunction   2      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x93b bit0   (3 probes)
+cullMode               1      25.8%    0.0%     0.0%     CAUSAL @ reg26 0x998 bit0   (2 probes)
+frontFacingWinding     88     25.8%    0.0%     0.0%     CAUSAL @ reg26 0x99a bit0   (9 probes)
+stencilPassOp          392    25.8%   25.8%    25.8%     CAUSAL @ reg26 0x93e bit0  (11 probes)
+scissor.x              1      25.8%   17.0%    17.0%     CAUSAL @ reg19 0x012       (2 probes)
+blendColor.red         1      25.8%   25.8%    25.8%     CAUSAL @ reg21 0x620       (2 probes)
 triangleFillMode       407    25.8%    3.4%      -       altered output, never reproduced B
 stencilCompareFunc     50     25.8%    0.0%      -       patching had no effect
+depthWriteEnabled      6      25.8%   25.8%      -       patching had no effect
 ```
+
+Note `stencilPassOp` and `blendColor.red` pass with **identical coverage** — the
+pixel-exact hash catches them because colour changed the predicted way while the
+silhouette did not. A coverage-only metric would have called both untestable.
 
 Bisection matters: isolating one causal byte out of 88 candidates takes 9
 renders instead of 88, and the full run is under half a second. Patching all

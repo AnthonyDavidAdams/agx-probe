@@ -5,6 +5,8 @@
    No per-field expectations -- exact equality or it fails. */
 #import "agxcommon.h"
 
+typedef enum { K_BITS, K_BYTE, K_F32 } FKind;
+
 typedef struct {
   int dcmp,dwrite,cull,wind,fill;
   int scmp,spass;
@@ -19,25 +21,29 @@ static IMP real_commit;
 static int g_cal=-1, g_patchval=-1, g_patchmask=0, g_hits=0, g_only=-1, g_lo=0, g_hi=1<<30;
 #define MAXSITE 600
 static struct { int r; uint64_t o; int sh; } site[MAXSITE]; static int nsite=0;
+static int g_kind=K_BITS; static float g_fval=0;
 
 static void hook(id s, SEL c){
   if(g_cal>=0) agx_snapshot(g_cal);
   if(g_patchval>=0){ for(int i=0;i<nsite;i++){ if(g_only>=0 && i!=g_only) continue;
       if(g_only<0 && (i<g_lo||i>=g_hi)) continue;
       uint8_t *live=(uint8_t*)(uintptr_t)(r_addr[site[i].r]+site[i].o);
-      int sh=site[i].sh, m=g_patchmask<<sh;
-      *live=(uint8_t)((*live & ~m) | ((g_patchval<<sh) & m)); }
+      if(g_kind==K_F32){ memcpy(live,&g_fval,4); }
+      else if(g_kind==K_BYTE){ *live=(uint8_t)g_patchval; }
+      else { int sh=site[i].sh, m=g_patchmask<<sh;
+             *live=(uint8_t)((*live & ~m) | ((g_patchval<<sh) & m)); } }
     g_hits=nsite; }
   ((void(*)(id,SEL))real_commit)(s,c);
 }
 
 static const char *kSrc="#include <metal_stdlib>\nusing namespace metal;\n"
-"struct VOut{float4 pos [[position]];};\n"
-"struct Args{float2 off; float z;};\n"
-"vertex VOut v_main(uint vid [[vertex_id]], constant Args &a [[buffer(0)]]){\n"
+""
+"struct Args{float2 off; float z; float tint;};\n"
+"struct VO2{float4 pos [[position]]; float tint;};\n"
+"vertex VO2 v_main(uint vid [[vertex_id]], constant Args &a [[buffer(0)]]){\n"
 "  float2 p[3]={float2(-.9,-.9),float2(.9,-.9),float2(0,.9)};\n"
-"  VOut o;o.pos=float4(p[vid]*0.8+a.off,a.z,1);return o;}\n"
-"fragment float4 f_main(){return float4(1,0.3,0.1,1);}\n";
+"  VO2 o;o.pos=float4(p[vid]*0.8+a.off,a.z,1);o.tint=a.tint;return o;}\n"
+"fragment float4 f_main(VO2 i [[stage_in]]){return float4(1,0.3,i.tint,1);}\n";
 
 /* returns framebuffer hash; *cov gets lit-pixel percentage */
 static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
@@ -67,7 +73,7 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     [en setStencilReferenceValue:c.sref];
     [en setScissorRect:(MTLScissorRect){c.sx,0,60,64}];
     [en setBlendColorRed:c.bcr green:0.5 blue:0.5 alpha:1.0];
-    struct { float ox,oy,z; } a1={0.0f,0.0f,0.2f};
+    struct { float ox,oy,z,tint; } a1={0.0f,0.0f,0.2f,0.1f};
     [en setVertexBytes:&a1 length:sizeof a1 atIndex:0];
     [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     if(c.twoDraw){
@@ -82,7 +88,7 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
       x2.frontFaceStencil=s2; x2.backFaceStencil=s2;
       [en setDepthStencilState:[dev newDepthStencilStateWithDescriptor:x2]];
       [en setStencilReferenceValue:1];
-      struct { float ox,oy,z; } a2={0.12f,0.12f,0.4f};
+      struct { float ox,oy,z,tint; } a2={0.0f,0.0f,0.4f,0.9f};
       [en setVertexBytes:&a2 length:sizeof a2 atIndex:0];
       [en drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
     }
@@ -100,16 +106,19 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
   return h;
 }
 
-typedef struct { const char *name; size_t off; int mask; int a,b; int two; } Field;
+typedef struct { const char *name; size_t off; int mask; double a,b; int two; FKind kind; } Field;
 #define O(f) offsetof(Cfg,f)
 static Field F[]={
-  {"depthCompareFunction",O(dcmp),  0x07, 7,0, 0},
-  {"cullMode",            O(cull),  0x03, 2,1, 0},
-  {"frontFacingWinding",  O(wind),  0x01, 1,0, 0},
-  {"triangleFillMode",    O(fill),  0x01, 0,1, 0},
-  {"stencilCompareFunc",  O(scmp),  0x07, 7,0, 0},
-  {"stencilPassOp",       O(spass), 0x07, 2,0, 2},
-  {"depthWriteEnabled",   O(dwrite),0x01, 1,0, 1},
+  {"depthCompareFunction",O(dcmp),  0x07, 7,0, 0, K_BITS},
+  {"cullMode",            O(cull),  0x03, 2,1, 0, K_BITS},
+  {"frontFacingWinding",  O(wind),  0x01, 1,0, 0, K_BITS},
+  {"triangleFillMode",    O(fill),  0x01, 0,1, 0, K_BITS},
+  {"stencilCompareFunc",  O(scmp),  0x07, 7,0, 0, K_BITS},
+  {"stencilPassOp",       O(spass), 0x07, 2,0, 2, K_BITS},
+  {"depthWriteEnabled",   O(dwrite),0x01, 1,0, 1, K_BITS},
+  {"scissor.x",           O(sx),    0xFF, 0,28,0, K_BYTE},
+  {"stencilReferenceValue",O(sref), 0xFF, 1,2, 2, K_BYTE},
+  {"blendColor.red",      O(bcr),   0,  1.0,0.25,0, K_F32},
 };
 #define NF (int)(sizeof(F)/sizeof(F[0]))
 
@@ -145,10 +154,16 @@ int main(void){ @autoreleasepool {
   printf("--------------------------------------------------------------------------\n");
   int pass=0,tested=0,noeffect=0;
   for(int i=0;i<NF;i++){
+    fprintf(stderr,"[val] field %d/%d %s\n",i+1,NF,F[i].name);
     Cfg ca=base, cb2=base;
     ca.twoDraw=F[i].two; cb2.twoDraw=F[i].two;
-    *(int*)((char*)&ca +F[i].off)=F[i].a;
-    *(int*)((char*)&cb2+F[i].off)=F[i].b;
+    if(F[i].kind==K_F32){ *(float*)((char*)&ca +F[i].off)=(float)F[i].a;
+                          *(float*)((char*)&cb2+F[i].off)=(float)F[i].b; }
+    else if(F[i].kind==K_BYTE){ *(uint32_t*)((char*)&ca +F[i].off)=(uint32_t)F[i].a;
+                                *(uint32_t*)((char*)&cb2+F[i].off)=(uint32_t)F[i].b; }
+    else { *(int*)((char*)&ca +F[i].off)=(int)F[i].a;
+           *(int*)((char*)&cb2+F[i].off)=(int)F[i].b; }
+    g_kind=F[i].kind; g_fval=(float)F[i].b;
     double covA,covB,covP;
     /* calibrate on runs 0/1/2 */
     g_cal=0; uint64_t hA=draw(ca,-1,0,&covA);
@@ -159,27 +174,40 @@ int main(void){ @autoreleasepool {
                        F[i].name,"-",covA,covB,"-"); noeffect++; continue; }
     nsite=0;
     for(int r=0;r<r_n && nsite<MAXSITE;r++) for(uint64_t o=0;o<r_size[r] && nsite<MAXSITE;o++){
+      if(F[i].kind==K_F32){
+        if(o+4>r_size[r]) continue;
+        if(o & 3) continue;                 /* 4-byte aligned only */
+        float fx,fy,fz; memcpy(&fx,&snap[0][r][o],4); memcpy(&fy,&snap[1][r][o],4); memcpy(&fz,&snap[2][r][o],4);
+        if(fx!=(float)F[i].a || fy!=(float)F[i].b || fz!=(float)F[i].a) continue;
+        site[nsite].r=r; site[nsite].o=o; site[nsite].sh=0; nsite++; continue;
+      }
       int x=snap[0][r][o],y=snap[1][r][o],z=snap[2][r][o];
       if(x==y) continue;
+      if(F[i].kind==K_BYTE){
+        if(x!=(int)F[i].a || y!=(int)F[i].b || z!=(int)F[i].a) continue;
+        site[nsite].r=r; site[nsite].o=o; site[nsite].sh=0; nsite++; continue;
+      }
       for(int sh=0; sh<8; sh++){
-        if(((x>>sh)&F[i].mask)!=(F[i].a&F[i].mask)) continue;
-        if(((y>>sh)&F[i].mask)!=(F[i].b&F[i].mask)) continue;
-        if(((z>>sh)&F[i].mask)!=(F[i].a&F[i].mask)) continue;
+        if(((x>>sh)&F[i].mask)!=((int)F[i].a&F[i].mask)) continue;
+        if(((y>>sh)&F[i].mask)!=((int)F[i].b&F[i].mask)) continue;
+        if(((z>>sh)&F[i].mask)!=((int)F[i].a&F[i].mask)) continue;
         site[nsite].r=r; site[nsite].o=o; site[nsite].sh=sh; nsite++; break; } }
+    int capw = (F[i].kind==K_BITS)?MAXSITE:24;
+    if(nsite>capw) nsite=capw;
     if(!nsite){ printf("%-22s %-6d %8.1f%% %8.1f%% %-9s no site calibrated\n",F[i].name,0,covA,covB,"-"); continue; }
     /* try each candidate individually: the causal byte is the one whose patch
        reproduces B exactly. Shotgunning all candidates corrupts unrelated state. */
     int winner=-1, changedAny=0; double covW=0; int probes=0;
     /* bisect: does patching [lo,hi) reproduce B? narrow until a single site */
     int lo=0, hi=nsite;
-    g_lo=lo; g_hi=hi; uint64_t hAll=draw(ca,F[i].b,F[i].mask,&covP); probes++;
+    g_lo=lo; g_hi=hi; uint64_t hAll=draw(ca,(int)F[i].b,F[i].mask,&covP); probes++;
     if(hAll==hB){
       while(hi-lo>1){
         int mid=(lo+hi)/2;
-        g_lo=lo; g_hi=mid; uint64_t h1=draw(ca,F[i].b,F[i].mask,&covP); probes++;
+        g_lo=lo; g_hi=mid; uint64_t h1=draw(ca,(int)F[i].b,F[i].mask,&covP); probes++;
         if(h1==hB){ hi=mid; } else { lo=mid; }
       }
-      g_lo=lo; g_hi=lo+1; uint64_t hf=draw(ca,F[i].b,F[i].mask,&covW); probes++;
+      g_lo=lo; g_hi=lo+1; uint64_t hf=draw(ca,(int)F[i].b,F[i].mask,&covW); probes++;
       if(hf==hB) winner=lo;
       g_lo=0; g_hi=1<<30;
     } else if(hAll!=hA) changedAny=1;

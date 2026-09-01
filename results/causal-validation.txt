@@ -1,15 +1,28 @@
 [val] 33 regions tracked
 
+[val] field 1/10 depthCompareFunction
+[val] field 2/10 cullMode
+[val] field 3/10 frontFacingWinding
+[val] field 4/10 triangleFillMode
+[val] field 5/10 stencilCompareFunc
+[val] field 6/10 stencilPassOp
+[val] field 7/10 depthWriteEnabled
+[val] field 8/10 scissor.x
+[val] field 9/10 stencilReferenceValue
+[val] field 10/10 blendColor.red
 CAUSAL VALIDATION -- patched(A->B) must be PIXEL-IDENTICAL to unpatched(B)
 ==========================================================================
 FIELD                  SITES  cov(A)    cov(B)    cov(A->B) VERDICT
 --------------------------------------------------------------------------
-depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg25 0x00093b bit0 (3 probes)
-cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg25 0x000998 bit0 (2 probes)
-frontFacingWinding     88         25.8%      0.0%      0.0%  CAUSAL @ reg25 0x00099a bit0 (9 probes)
+depthCompareFunction   2          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00093b bit0 (3 probes)
+cullMode               1          25.8%      0.0%      0.0%  CAUSAL @ reg26 0x000998 bit0 (2 probes)
+frontFacingWinding     88         25.8%      0.0%      0.0%  CAUSAL @ reg26 0x00099a bit0 (9 probes)
 triangleFillMode       407        25.8%      3.4% -         altered output but never reproduced B
 stencilCompareFunc     50         25.8%      0.0% -         patching all candidates had no effect
-stencilPassOp          -          25.8%     25.8% -         no visible effect - untestable
-depthWriteEnabled      -          32.1%     32.1% -         no visible effect - untestable
+stencilPassOp          392        25.8%     25.8%     25.8%  CAUSAL @ reg26 0x00093e bit0 (11 probes)
+depthWriteEnabled      6          25.8%     25.8% -         patching all candidates had no effect
+scissor.x              1          25.8%     17.0%     17.0%  CAUSAL @ reg19 0x000012 bit0 (2 probes)
+stencilReferenceValue  -          25.8%     25.8% -         no visible effect - untestable
+blendColor.red         1          25.8%     25.8%     25.8%  CAUSAL @ reg21 0x000620 bit0 (2 probes)
 --------------------------------------------------------------------------
-3 of 5 testable fields proven causal (2 had no visible effect)
+6 of 9 testable fields proven causal (1 had no visible effect)
