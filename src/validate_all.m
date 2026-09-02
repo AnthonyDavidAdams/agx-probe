@@ -20,6 +20,7 @@ typedef struct {
 static id<MTLDevice> dev; static id<MTLTexture> col,ds; static id<MTLCommandQueue> q;
 static id<MTLRenderPipelineState> pso;
 static IMP real_commit;
+static int g_faults=0, g_requeues=0;
 static int g_cal=-1, g_patchval=-1, g_patchmask=0, g_hits=0, g_only=-1, g_lo=0, g_hi=1<<30;
 static int g_raw=0; static uint8_t g_skip[4096];                      /* replay mode: write captured B bytes */
 static uint8_t g_rawval[4096];
@@ -116,8 +117,20 @@ static uint64_t draw(Cfg c,int patchval,int patchmask,double *cov){
     long timedout = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 4ll*NSEC_PER_SEC));
     g_patchval=-1;
     if(timedout || cb.status!=MTLCommandBufferStatusCompleted || cb.error){
+      g_faults++;
+      if(g_faults>=3){                        /* queue is wedged, not one bad patch */
+        fprintf(stderr,"[val] %d consecutive faults -- rebuilding command queue\n",g_faults);
+        q=[dev newCommandQueue];
+        g_faults=0; g_requeues++;
+        if(g_requeues>4){
+          fprintf(stderr,"[val] ABORT: queue unrecoverable after %d rebuilds\n",g_requeues);
+          printf("ABORTED: GPU queue unrecoverable; run is not usable\n");
+          exit(2);                            /* fail loudly instead of emitting garbage */
+        }
+      }
       if(cov)*cov=-1; return 0ULL;            /* sentinel: never equals a real hash */
     }
+    g_faults=0;
     int W=64,H=64; uint8_t *px=malloc(W*H*4);
     [col getBytes:px bytesPerRow:W*4 fromRegion:MTLRegionMake2D(0,0,W,H) mipmapLevel:0];
     long lit=0;
