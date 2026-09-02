@@ -42,6 +42,9 @@ gpu_recover(){
   say "  GPU DID NOT RECOVER - pausing 5 min"; sleep 300; return 1
 }
 
+gpuev(){ ls /Library/Logs/DiagnosticReports/gpuEvent-* 2>/dev/null | wc -l | tr -d ' '; }
+GPU0=$(gpuev)
+say "GPU fault reports at start: $GPU0"
 say "=== overnight run starting: ${REPS} reps x $(echo $PROBES|wc -w|tr -d ' ') probes, ${TIMEOUT}s cap ==="
 CYCLE=0
 while true; do
@@ -52,11 +55,15 @@ while true; do
     for r in $(seq 1 $REPS); do
       d="$OUT/${p}.c${CYCLE}r${r}.txt"
       if run_bounded "$p" "$d"; then
-        n=$(grep -c 'CAUSAL' "$d" 2>/dev/null || echo 0)
+        n=$(grep -c CAUSAL "$d" 2>/dev/null); n=${n:-0}
         say "  $p rep$r ok (${n} causal lines)"
       else
         say "  $p rep$r TIMED OUT after ${TIMEOUT}s"
         gpu_recover
+      fi
+      G=$(gpuev); if [ "$G" -gt "$GPU0" ]; then
+        say "    +$((G-GPU0)) GPU fault report(s) during $p  <-- desktop may have glitched"
+        GPU0=$G
       fi
     done
   done
