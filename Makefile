@@ -1,7 +1,7 @@
 CC      = clang
 CFLAGS  = -fobjc-arc -O2 -Wall -Isrc
 FRAME   = -framework Foundation -framework Metal
-BIN     = build/state_probe build/isa_probe build/write_probe build/cull_probe build/validate_all build/pso_probe build/isa2_probe build/ring_probe build/isa_exec_probe build/pass_probe build/sampler_probe build/cleardepth_probe build/validate_sampler build/validate_pass
+BIN     = build/state_probe build/isa_probe build/write_probe build/cull_probe build/validate_all build/pso_probe build/isa2_probe build/ring_probe build/isa_exec_probe build/pass_probe build/sampler_probe build/cleardepth_probe build/validate_sampler build/validate_pass build/wide_probe
 
 all: $(BIN)
 
@@ -16,7 +16,7 @@ run: all
 	./build/isa_probe   > results/isa-map.txt   2> results/isa-log.txt & \
 	wait
 
-validate: build/write_probe build/cull_probe build/validate_all build/pso_probe build/isa2_probe build/ring_probe build/isa_exec_probe build/pass_probe build/sampler_probe build/cleardepth_probe build/validate_sampler build/validate_pass
+validate: build/write_probe build/cull_probe build/validate_all build/pso_probe build/isa2_probe build/ring_probe build/isa_exec_probe build/pass_probe build/sampler_probe build/cleardepth_probe build/validate_sampler build/validate_pass build/wide_probe
 	./build/write_probe
 	./build/cull_probe
 
